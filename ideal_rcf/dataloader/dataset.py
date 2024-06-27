@@ -8,6 +8,7 @@ except ModuleNotFoundError:
 
 from typing import List
 from tqdm import tqdm
+from copy import deepcopy
 
 class DataSet(object):
     def __init__(self,
@@ -32,8 +33,56 @@ class DataSet(object):
             case_obj.check_set()
 
 
-    def filter(self):
+    def _filter(self):
+        ...
         return 'Not implemented yet'
+    
+    def fit_scaler(self,
+                   scaler :config.scalers_obj,
+                   train_set :List[CaseSet]):
+        
+        if not scaler:
+            return
+        ...
+        scaler.fit(train_set)
+    
+    def apply_scaler(self,
+                     scaler :config.scalers_obj,
+                    _set :List[CaseSet]):
+        if scaler:
+            _set = scaler.transform(_set)
+
+        return _set
+    
+    def split_train_val_test(self):
+        ...
+        local_contents = deepcopy(self.contents)
+
+        train_set = []
+        val_set = []
+        test_set = []
+
+        for case_set in local_contents:
+            if case_set.case in self.config.trainset:
+                train_set.append(case_set)
+            elif case_set.case in self.config.valset:
+                val_set.append(case_set)
+            elif case_set.case in self.config.testset:
+                test_set.append(case_set)
+
+        ### need to apply scaler on a per component basis via caseset
+
+        # self.fit_scaler(train_set)
+        # train_set = self.apply_scaler(train_set)
+        # val_set = self.apply_scaler(val_set)
+
+
+
+        return 'Not implemented yet'
+    
+    
+    
+
     
 
 if __name__ == '__main__':

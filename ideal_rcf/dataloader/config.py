@@ -1,5 +1,5 @@
 from typing import List, Optional
-
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 class config(object):
     def __init__(self,
@@ -8,12 +8,19 @@ class config(object):
                  dataset_path :str,
                  features :List[str],
                  tensor_features :str,
-                 tensor_features_linear : str,
-                 labels :List[str],
+                 labels :Optional[List[str]]=None,                 
+                 tensor_features_linear :Optional[str]=None,
+                 trainset :Optional[List[str]]=None,
+                 valset :Optional[List[str]]=None,
+                 testset :Optional[List[str]]=None,
+                 features_scaler :Optional[str]='minmax',
+                 labels_scaler :Optional[str]='standard',
                  custom_turb_dataset :Optional[str]=None,
                  tensor_features_eV :Optional[str]=None,
                  labels_eV :Optional[List[str]]=None,
+                 labels_NL :Optional[List[str]]=None,
                  features_filter :Optional[List[str]]=None,
+                 features_z_score_outliers_threshold :Optional[int]=None,
                  Cx :Optional[str]='Cx',
                  Cy :Optional[str]='Cy',
                  u_velocity_label :Optional[str]='um',
@@ -28,13 +35,26 @@ class config(object):
         self.features = self.ensure_list_instance(features)
         self.tensor_features = self.ensure_str_instance(tensor_features)
         self.tensor_features_linear = self.ensure_str_instance(tensor_features_linear)
-        self.labels = self.ensure_str_instance(labels)
+        self.labels = self.ensure_str_instance(labels if not labels_NL else labels_NL)
+
+        ### applied to features
+        self.features_scaler = self.scalers_obj.get(features_scaler)
+        
+        ### applied to labels and tensor_features_linear
+        self.labels_scaler = self.scalers_obj.get(labels_scaler) 
+
+        self.trainset = self.ensure_list_instance(trainset)
+        self.valset = self.ensure_list_instance(valset)
+        self.testset = self.ensure_list_instance(testset)
 
         self.tensor_features_eV = self.ensure_str_instance(tensor_features_eV)
+        
+        ### if labels_eV is passed labels is used as the labels of NL term
         self.labels_eV = self.ensure_str_instance(labels_eV)
 
         self.features_filter = self.ensure_list_instance(features_filter)
-        
+        self.remove_outliers_threshold = features_z_score_outliers_threshold
+
         self.Cx = Cx
         self.Cy = Cy
 
@@ -42,7 +62,12 @@ class config(object):
         self.v_velocity_label = v_velocity_label
 
         self.dataset_labels_dir = dataset_labels_dir
+    
 
+    scalers_obj = {
+        'minmax': MinMaxScaler(),
+        'standard': StandardScaler()
+    }
 
     def ensure_list_instance(self, attribute):
         if isinstance(attribute, list) or not attribute:
