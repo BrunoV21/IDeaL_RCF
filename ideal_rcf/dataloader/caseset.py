@@ -111,7 +111,35 @@ class CaseSet(object):
             else:
                 indexes.append(int(feature[-1])+39)
                 
-        return indexes 
+        return indexes
+
+
+    def remove_outliers(self):
+        ...
+        '''
+        def remove_outliers(Features):
+            stdev = np.std(Features,axis=0)
+            means = np.mean(Features,axis=0)
+            ind_drop = np.empty(0)
+            for i in range(len(Features[0,:])):
+                ind_drop = np.concatenate((ind_drop,np.where((Features[:,i]>means[i]+5*stdev[i]) | (Features[:,i]<means[i]-5*stdev[i]) )[0]))
+            return np.unique(ind_drop.astype(int))
+
+        def remove_outliers_test(x, basis, Shat, y, Cx, Cy):
+            outlier_index = remove_outliers(x) #Features
+            print('Found '+str(len(outlier_index))+' outliers in the input feature set')
+            x = np.delete(x, outlier_index,axis=0)
+            if bool(basis.any()):
+                basis = np.delete(basis,outlier_index,axis=0)
+            Shat = np.delete(Shat, outlier_index,axis=0)     
+            y = np.delete(y,outlier_index,axis=0)
+            Cx = np.delete(Cx,outlier_index,axis=0)
+            Cy = np.delete(Cy,outlier_index,axis=0)
+            return [x, basis, Shat, y, Cx, Cy, outlier_index]
+        '''
+        return 'not impplemented yet'
+     
+
     
     
     def check_set(self):
