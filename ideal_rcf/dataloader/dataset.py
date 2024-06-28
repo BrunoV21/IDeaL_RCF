@@ -36,7 +36,8 @@ class DataSet(object):
     def _filter(self):
         ...
         return 'Not implemented yet'
-    
+
+
     def fit_scaler(self,
                    scaler :config.scalers_obj,
                    train_set :List[CaseSet]):
@@ -45,15 +46,21 @@ class DataSet(object):
             return
         ...
         scaler.fit(train_set)
-    
+
+
     def apply_scaler(self,
                      scaler :config.scalers_obj,
                     _set :List[CaseSet]):
+        ### can remove it as is already implemeted at caseset kvk
+
         if scaler:
             _set = scaler.transform(_set)
 
         return _set
     
+
+
+
     def split_train_val_test(self):
         ...
         local_contents = deepcopy(self.contents)
@@ -71,19 +78,22 @@ class DataSet(object):
                 test_set.append(case_set)
 
         ### need to apply scaler on a per component basis via caseset
-
+        
         # self.fit_scaler(train_set)
         # train_set = self.apply_scaler(train_set)
-        # val_set = self.apply_scaler(val_set)
+        # val_set = self.apply_scaler(val_set)´
 
+        ### each of train, val, test can be a case_set resulting from statcing
+        ### set_id = train, val, test
+
+        ### operations to perform in train, val, test
+        ### outliers removal
+        ### features transform
+        ### features scaling
 
 
         return 'Not implemented yet'
-    
-    
-    
 
-    
 
 if __name__ == '__main__':
 
@@ -92,11 +102,14 @@ if __name__ == '__main__':
     turb_datasete = 'komegasst'
     custom_turb_dataset = 'a_3_1_2_NL_S_DNS_eV'
 
-    case = ['PHLL_case_0p5',
-            'PHLL_case_0p8',
-            'PHLL_case_1p0',
-            'PHLL_case_1p2',
-            'PHLL_case_1p5',]
+    case = [
+        'PHLL_case_0p5',
+        'PHLL_case_0p8',
+        'PHLL_case_1p0',
+        'PHLL_case_1p2',
+        'PHLL_case_1p5'
+    ]
+    
     features_filter = ['I1_1', 'I1_2', 'I1_3', 'I1_4', 'I1_5', 'I1_6', 'I1_8', 'I1_9', 'I1_15', 'I1_17', 'I1_19', 'I2_3', 'I2_4', 'q_1', 'q_2']
 
     features = ['I1', 'I2', 'q']
