@@ -6,7 +6,7 @@ except ModuleNotFoundError:
     from config import config
     from caseset import CaseSet
 
-from typing import List
+from typing import List, Optional
 from tqdm import tqdm
 from copy import deepcopy
 
@@ -21,6 +21,10 @@ class DataSet(object):
         self.config = set_config
         
         self.cases = self.config.cases if  len(self.config.cases) > 1 else self.config.ensure_list_instance(cases)
+
+        self.features_scaler = self.config.features_scaler
+        self.labels_scaler = self.config.labels_scaler
+        self.labels_eV_scaler = self.config.labels_eV_scaler
         
         self.contents = [
             CaseSet(case=case, set_config=self.config)
@@ -37,28 +41,25 @@ class DataSet(object):
         ...
         return 'Not implemented yet'
 
-
-    def fit_scaler(self,
-                   scaler :config.scalers_obj,
-                   train_set :List[CaseSet]):
-        
-        if not scaler:
-            return
-        ...
-        scaler.fit(train_set)
-
-
-    def apply_scaler(self,
-                     scaler :config.scalers_obj,
-                    _set :List[CaseSet]):
-        ### can remove it as is already implemeted at caseset kvk
-
-        if scaler:
-            _set = scaler.transform(_set)
-
-        return _set
     
+    def shuffle(self):
+        ...
 
+
+    def stack_case_sets(self,
+                        case_sets :List[CaseSet],
+                        set_id :Optional[str]=None):
+        
+        if not case_sets:
+            return None
+        
+        stacked_case = case_sets[0]
+        stacked_case.set_id = set_id
+
+        for case_set in case_sets[1:]:
+            stacked_case._stack(*case_set._export_for_stack())
+
+        return stacked_case
 
 
     def split_train_val_test(self):
@@ -76,23 +77,20 @@ class DataSet(object):
                 val_set.append(case_set)
             elif case_set.case in self.config.testset:
                 test_set.append(case_set)
-
-        ### need to apply scaler on a per component basis via caseset
         
-        # self.fit_scaler(train_set)
-        # train_set = self.apply_scaler(train_set)
-        # val_set = self.apply_scaler(val_set)´
+        train_set = self.stack_case_sets(train_set, set_id='train')
+        val_set = self.stack_case_sets(val_set, set_id='val')
+        test_set = self.stack_case_sets(test_set, set_id='test')
+        
+        if train_set:
+            self.features_scaler, self.labels_scaler, self.labels_eV_scaler = train_set._fit_scaler(self.features_scaler , self.labels_scaler, self.labels_eV_scaler)
+            train_set._scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler)
+            val_set._scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler) if self.config.valset else ...
+            test_set._scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler) if self.config.testset else ...
 
-        ### each of train, val, test can be a case_set resulting from statcing
-        ### set_id = train, val, test
+        tain_val_test = tuple(_set for _set in [train_set, val_set, test_set] if _set)
 
-        ### operations to perform in train, val, test
-        ### outliers removal
-        ### features transform
-        ### features scaling
-
-
-        return 'Not implemented yet'
+        return tain_val_test
 
 
 if __name__ == '__main__':
@@ -109,10 +107,26 @@ if __name__ == '__main__':
         'PHLL_case_1p2',
         'PHLL_case_1p5'
     ]
+
+    trainset = [
+        'PHLL_case_0p5',
+        'PHLL_case_0p8',
+        'PHLL_case_1p5'
+    ]
+
+    valset = [
+        'PHLL_case_1p0',
+    ]
     
+    testset = [
+        'PHLL_case_1p2',
+    ]
+
     features_filter = ['I1_1', 'I1_2', 'I1_3', 'I1_4', 'I1_5', 'I1_6', 'I1_8', 'I1_9', 'I1_15', 'I1_17', 'I1_19', 'I2_3', 'I2_4', 'q_1', 'q_2']
 
     features = ['I1', 'I2', 'q']
+    features_cardinality = [20, 20, 4]
+
     tensor_features = ['Tensors']
     tensor_features_linear = ['Shat']
     labels = ['a_NL']
@@ -132,12 +146,17 @@ if __name__ == '__main__':
     )
 
     print('Standard case:')
-    DataSet(set_config=standard_case_test_configuration).check_set()
+    a = DataSet(set_config=standard_case_test_configuration)
+    a.check_set()
+    a.split_train_val_test()
 
     optional_case_test_configuration = config(
         cases=case,
         turb_dataset=turb_datasete,
         dataset_path=dataset_path,
+        trainset=trainset,
+        valset=valset,
+        testset=testset,
         features=features,
         tensor_features=tensor_features,
         tensor_features_linear=tensor_features_linear,
@@ -145,11 +164,19 @@ if __name__ == '__main__':
         custom_turb_dataset=custom_turb_dataset,
         tensor_features_eV=tensor_features_eV,
         labels_eV=labels_eV,
-        features_filter=features_filter
+        features_filter=features_filter,
+        features_cardinality=features_cardinality,
+        debug=True,
     )
 
     print('\nCustom turb dataset with features filter:')
-    DataSet(set_config=optional_case_test_configuration).check_set()
+    b = DataSet(set_config=optional_case_test_configuration)
+    b.check_set()
+    b.split_train_val_test()
+
+
+    ### add simple tests here
+    ### i.e don't pass teest_set and assert shape
 
 
     

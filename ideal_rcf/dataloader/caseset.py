@@ -24,24 +24,30 @@ class CaseSet(object):
 
         self.case = self.config.ensure_list_instance(case)
         
-        self.features = self.filter_features(
-            self.loadCollumnStackFeatures(self.config.features)
-        )
+        self.features = self.loadCollumnStackFeatures(self.config.features)
+
         self.tensor_features = self.loadCombinedArray(self.config.tensor_features)
         self.tensor_features_linear = self.loadCombinedArray(self.config.tensor_features_linear)
         self.labels = self.loadLabels(self.config.labels)
 
         self.tensor_features_eV = self.loadCombinedArray(self.config.tensor_features_eV)
         self.labels_eV = self.loadLabels(self.config.labels_eV)
+        self._ensure_eV_shapes()
 
         self.Cx = self.loadCombinedArray(self.config.Cx)
         self.Cy = self.loadCombinedArray(self.config.Cy)
 
         self.u = self.loadLabels(self.config.u)
         self.v = self.loadLabels(self.config.v)
+            
+        if self.config.features_filter and self.config.features_filter != self.config.all_features:
+            self._filter_features()
 
         if self.config.remove_outliers_threshold:
-            self.remove_outliers()
+            self._remove_outliers()
+
+        if self.config.features_transforms:
+            self._transform_features()
 
         if self.config.debug:
             self.check_set()
@@ -60,6 +66,9 @@ class CaseSet(object):
 
         except FileNotFoundError:
             data = self.loadCombinedArray(field)
+
+        if len(data.shape) == 1:
+            data = data.reshape((-1, 1))
 
         return data
 
@@ -80,7 +89,10 @@ class CaseSet(object):
             data = np.concatenate([
                 np.load(f'{self.config.dataset_path}/{self.config.turb_dataset}/{self.config.turb_dataset}_{case}_{field}.npy')
                 for case in self.case
-            ])  
+            ])
+
+        if len(data.shape) == 1:
+            data = data.reshape((-1, 1))
 
         return data
 
@@ -100,36 +112,13 @@ class CaseSet(object):
         return features
 
 
-    def filter_features(self, 
-                        features :np.array):
-    
-        if self.config.features_filter:
-            indexes_union = self.filtered_features_indexes()
-            if self.config.debug:
-                assert len(indexes_union) == len(self.config.features_filter)
-                print(f'[{self.set_id or self.case[0]}] sucessfuly filtered features {self.config.features} to {self.config.features_filter}')
+    def _filter_features(self,):
+        indexes_union = [self.config.all_features.index(feature) for feature in self.config.features_filter]
+        if self.config.debug:
+            assert len(indexes_union) == len(self.config.features_filter)
+            print(f'[{self.set_id or self.case[0]}] sucessfuly filtered features {self.config.features} to {self.config.features_filter}')
 
-            features = features[:, indexes_union]
-        
-        return features
-
-
-    def filtered_features_indexes(self):
-        ### should add a way to configure indexes...
-        ### most likely infering from features.shape
-        ### 
-        indexes = []
-
-        for feature in self.config.features_filter:
-            if feature[0] == 'I':
-                if feature[1] == '1':
-                    indexes.append(int(feature[3:])-1)
-                if feature[1] == '2':
-                    indexes.append(int(feature[3:])+19) 
-            else:
-                indexes.append(int(feature[-1])+39)
-                
-        return indexes
+        self.features = self.features[:, indexes_union]
 
 
     def get_outliers_index(self):
@@ -148,7 +137,7 @@ class CaseSet(object):
         return np.unique(ind_drop.astype(int))
 
 
-    def remove_outliers(self):
+    def _remove_outliers(self):
         outliers_index = self.get_outliers_index()
 
         if self.config.debug:
@@ -169,36 +158,53 @@ class CaseSet(object):
         self.v = np.delete(self.v, outliers_index, axis=0)
 
     
-    def _transform(self,):
-        '''
-        def transform_data(x_train, feat_list, feats_not_to_transform = ['I1_2', 'I1_5', 'I1_8','I1_15','I1_17', 'I1_19']):
-            for i in range(x_train.shape[1]) :
-                if feat_list[i][0] != 'q':
-                    if feat_list[i] in feats_not_to_transform :
-                        print(f'>{feat_list[i]} not transformed as it is not skewed enough')
-                        continue            
-                    elif x_train[:, i].min() < 0 < x_train[:, i].max():
-                        #x_train[:, i] = np.cbrt(x_train[:, i])
-                        print(f'>{feat_list[i]} data positive and negative: skippnig') 
-                        continue
-                    else :     
-                        x_train[:, i] = np.log(abs(x_train[:, i])+1)
-                        print(f'>{feat_list[i]} data strictly positive or negative: applying log transformation')
-            return x_train        
-        '''
-        self.config.features_cardinality
-        ### need to set up required transforms as well into config
-        # for self
+    def _transform_features(self):
+        ### must be applied after features_filter
+        print(f'[{self.set_id or self.case[0]}]')
+        for i, feature in enumerate(self.config.features_filter):
+            if feature in self.config.skip_features_transforms_for:
+                continue
+            print(f'[transforms] {feature}:')
+            for transform in self.config.features_transforms:
+                self.features[:,i] = transform(self.features[:,i], self.config.debug)
+
+
+    def _fit_scaler(self,
+                    features_scaler :Union[StandardScaler, MinMaxScaler, None],
+                    labels_scaler :Union[StandardScaler, MinMaxScaler, None],
+                    labels_eV_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        features_scaler.fit(self.features) if features_scaler else ...
+        labels_scaler.fit(self.labels) if labels_scaler else ...
+        labels_eV_scaler.fit(self.labels_eV) if (labels_eV_scaler and self.config.labels_eV) else ...
+
+        if self.config.debug:
+            applied_scalers = [
+                scaler for scaler in [features_scaler, labels_scaler, labels_eV_scaler] 
+                if scaler
+            ]
+            print(f'[{self.set_id or self.case[0]}] fitted scalers {applied_scalers}')
+
+        return features_scaler, labels_scaler, labels_eV_scaler
 
 
     def _scale(self,
                features_scaler :Union[StandardScaler, MinMaxScaler, None],
-               labels_scaler :Union[StandardScaler, MinMaxScaler, None]):
+               labels_scaler :Union[StandardScaler, MinMaxScaler, None],
+               labels_eV_scaler :Union[StandardScaler, MinMaxScaler, None]):
         
         self.features = features_scaler.transform(self.features) if features_scaler else self.features
         self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels
-        ### need to add logic here to only take first n_entries if shapes don't match
-        # self.tensor_features_linear = labels_scaler.transform(self.tensor_features_linear) if (labels_scaler and self.tensor_features_linear) else self.tensor_features_linear
+        self.labels_eV = labels_eV_scaler.transform(self.labels_eV) if labels_eV_scaler else self.labels_eV
+        self.tensor_features_linear = labels_eV_scaler.transform(self.tensor_features_linear) if labels_eV_scaler else self.tensor_features_linear
+
+        if self.config.debug:
+            applied_scalers = [
+                scaler for scaler in [features_scaler, labels_scaler, labels_eV_scaler] 
+                if scaler
+            ]
+            print(f'[{self.set_id or self.case[0]}] applied scalers {applied_scalers}')
+
 
     def _ensure_eV_shapes(self):
         if bool(self.config.labels_eV) == bool(self.config.tensor_features_eV):
@@ -214,6 +220,50 @@ class CaseSet(object):
 
         else:
             raise AssertionError(f'[{self.set_id or self.case[0]}] Config_Error: labels_eV ({self.config.labels_eV}) and tensor_features_eV ({self.config.tensor_features_eV} must be passed simultaneously)')
+
+
+    def _export_for_stack(self):
+        return (
+            self.case,
+            self.features,
+            self.tensor_features,
+            self.tensor_features_linear,
+            self.labels,
+            self.tensor_features_eV,
+            self.labels_eV,
+            self.Cx,
+            self.Cy,
+            self.u,
+            self.v
+        )
+
+
+    def _stack(self, *args):
+
+        self.case.append(args[0])
+        self.case = [_case if isinstance(_case, list) else [_case] for _case in self.case]
+        self.case = sum(self.case, [])
+
+        for arg, arg_value in zip(
+            [
+                'features',
+                'tensor_features',
+                'tensor_features_linear',
+                'labels',
+                'tensor_features_eV',
+                'labels_eV',
+                'Cx',
+                'Cy',
+                'u',
+                'v',
+            ],
+            args[1:]
+        ):
+            updated_value = np.vstack((getattr(self, arg), arg_value))
+            setattr(self, arg, updated_value)
+
+        if self.config.debug:
+            print(f'[{self.set_id}] sucessfully stacked case {args[0]} into {self.case[:-1]}')
 
 
     def check_set(self):
@@ -260,6 +310,9 @@ if __name__ == '__main__':
     features_filter = ['I1_1', 'I1_2', 'I1_3', 'I1_4', 'I1_5', 'I1_6', 'I1_8', 'I1_9', 'I1_15', 'I1_17', 'I1_19', 'I2_3', 'I2_4', 'q_1', 'q_2']
     features_cardinality = [20, 20, 4]
 
+    features_transforms = ['multi_sign_cbrt', 'same_sign_log']
+    skip_features_transforms_for = ['I1_2', 'I1_5', 'I1_8','I1_15','I1_17', 'I1_19', 'q_1', 'q_2', 'q_3', 'q_4']
+
     features = ['I1', 'I2', 'q']
     tensor_features = ['Tensors']
     tensor_features_linear = ['Shat']
@@ -276,14 +329,17 @@ if __name__ == '__main__':
         turb_dataset=turb_datasete,
         dataset_path=dataset_path,
         features=features,
+        features_cardinality = features_cardinality,
         tensor_features=tensor_features,
         tensor_features_linear=tensor_features_linear,
         labels='b',
         debug=True
     )
+    all_features = standard_case_test_configuration.features_filter
 
     print('Standard case:')
     CaseSet(case, set_config=standard_case_test_configuration)
+    print(f'All extracted features based on cardinality: {all_features}')
 
     optional_case_test_configuration = config(
         cases=case,
@@ -317,10 +373,12 @@ if __name__ == '__main__':
         labels_eV=labels_eV,
         features_filter=features_filter,
         features_cardinality=features_cardinality,
+        features_transforms=features_transforms,
+        skip_features_transforms_for=skip_features_transforms_for,
         debug=True
     )
 
-    print('\nCustom turb dataset with features filter, no SHAT term and remove outliers:')
+    print('\nCustom turb dataset with features filter, no SHAT term and remove outliers, and features transforms:')
     CaseSet(case, set_config=extra_optional_case_test_configuration)
 
     
