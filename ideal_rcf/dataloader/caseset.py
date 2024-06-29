@@ -380,5 +380,3 @@ if __name__ == '__main__':
 
     print('\nCustom turb dataset with features filter, no SHAT term and remove outliers, and features transforms:')
     CaseSet(case, set_config=extra_optional_case_test_configuration)
-
-    
