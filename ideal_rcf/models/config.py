@@ -56,12 +56,19 @@ class MixerConfig(BaseConfig):
                  features_mlp_layers :int,
                  features_mlp_units :int,
                  normalization :Optional[str]='L',
-                 dropout :Optional[int]=0):
+                 dropout :Optional[int]=0,
+                 initializer :Optional[Union[Any, None]]=LecunNormal(seed=0),
+                 regularizer :Optional[Union[Any, None]]=L2(1e-8),
+                 activations :Optional[Union[str, Any]]='selu'
+                 ) -> None:
         ### initializer, regularizer and activations are taken from main nn
         self.features_mlp_layers = self.ensure_int_instance(features_mlp_layers)
         self.features_mlp_units = self.ensure_int_instance(features_mlp_units)
         self.dropout = self.ensure_int_instance(dropout)
         self.normalization = normalization
+        self.initializer = initializer
+        self.regularizer = regularizer
+        self.activations = activations
 
 
 class ModelConfig(BaseConfig):
@@ -86,9 +93,9 @@ class ModelConfig(BaseConfig):
                  epochs :Optional[int]=None,
                  initializer :Optional[Union[Any, None]]=LecunNormal(seed=0),
                  regularizer :Optional[Union[Any, None]]=L2(1e-8),
-                 tbnn_activations :Optional[Union[str, Any]]='seliu',                 
-                 evtbnn_activations :Optional[Union[str, Any]]='seliu',                 
-                 evnn_activations :Optional[Union[str, Any]]='seliu',
+                 tbnn_activations :Optional[Union[str, Any]]='selu',
+                 evtbnn_activations :Optional[Union[str, Any]]='selu',
+                 evnn_activations :Optional[Union[str, Any]]='selu',
                  eV_activation :Optional[Union[str,Any]]='exponential',
                  metrics :Optional[List[Union[str, Any]]]=['mse', 'mae'],
                  keras_callbacks :Optional[Union[List[Union[ReduceLROnPlateau, EarlyStopping, Any]], None]]=None,
@@ -116,7 +123,7 @@ class ModelConfig(BaseConfig):
         
         self.loss = loss
         self.optimizer = optimizer
-        self.weights_initializer = initializer
+        self.initializer = initializer
         self.regularizer = regularizer
         
         self.tbnn_activations = tbnn_activations
