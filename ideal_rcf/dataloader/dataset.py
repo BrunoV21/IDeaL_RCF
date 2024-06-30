@@ -91,9 +91,9 @@ class DataSet(object):
             if self.config.enable_mixer:
                 self.mixer_invariant_features_scaler = train_set._fit_mixer_scaler(self.mixer_invariant_features_scaler)
                 train_set._scale_mixer(self.mixer_invariant_features_scaler)
-                val_set._scale_mixer(self.mixer_invariant_features_scaler)
-                test_set._scale_mixer(self.mixer_invariant_features_scaler)
-
+                val_set._scale_mixer(self.mixer_invariant_features_scaler) if self.config.valset else ...
+                test_set._scale_mixer(self.mixer_invariant_features_scaler) if self.config.testset else ...
+                
                 train_set._build_mixer_features(self.mixer_invariant_features_scaler)
                 val_set._build_mixer_features(self.mixer_invariant_features_scaler) if self.config.valset else ...
                 test_set._build_mixer_features(self.mixer_invariant_features_scaler) if self.config.testset else ...
@@ -104,6 +104,10 @@ class DataSet(object):
             test_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler) if self.config.testset else ...
 
         tain_val_test = tuple(_set for _set in [train_set, val_set, test_set] if _set)
+
+        if self.config.debug:
+            for _set in tain_val_test:
+                _set.check_set()
 
         return tain_val_test
 
@@ -213,6 +217,35 @@ if __name__ == '__main__':
     c = DataSet(set_config=mixer_case_test_configuration)
     c.check_set()
     train, val, test = c.split_train_val_test()
+    train.shuffle()
+    val.shuffle()
+
+
+    no_test_mixer_case_test_configuration = SetConfig(
+        cases=case,
+        turb_dataset=turb_datasete,
+        dataset_path=dataset_path,
+        trainset=trainset,
+        valset=valset,
+        # testset=testset,
+        features=features,
+        tensor_features=tensor_features,
+        tensor_features_linear=tensor_features_linear,
+        labels=labels,
+        custom_turb_dataset=custom_turb_dataset,
+        tensor_features_eV=tensor_features_eV,
+        labels_eV=labels_eV,
+        features_filter=features_filter,
+        features_cardinality=features_cardinality,
+        enable_mixer=True,
+        debug=True,
+    )
+
+
+    print('\nCustom turb dataset with features filter and mixer enabled:')
+    d = DataSet(set_config=no_test_mixer_case_test_configuration)
+    d.check_set()
+    train, val, = d.split_train_val_test()
     train.shuffle()
     val.shuffle()
 
