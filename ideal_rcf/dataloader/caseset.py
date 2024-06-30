@@ -1,8 +1,8 @@
 try:
-    from dataloader.config import config
+    from dataloader.config import SetConfig
 
 except ModuleNotFoundError:
-    from config import config
+    from config import SetConfig
 
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
@@ -12,11 +12,11 @@ import numpy as np
 class CaseSet(object):
     def __init__(self,
                  case :str,
-                 set_config :config,
+                 set_config :SetConfig,
                  set_id :Optional[str]=None) -> None:
         
-        if not isinstance(set_config, config):
-            raise AssertionError(f'[config_error] set_config must be of instance {config()}')
+        if not isinstance(set_config, SetConfig):
+            raise AssertionError(f'[config_error] set_config must be of instance {SetConfig()}')
         
         self.config = set_config
 
@@ -385,7 +385,7 @@ if __name__ == '__main__':
     features_z_score_outliers_threshold = 10
 
 
-    standard_case_test_configuration = config(
+    standard_case_test_configuration = SetConfig(
         cases=case,
         turb_dataset=turb_datasete,
         dataset_path=dataset_path,
@@ -402,7 +402,7 @@ if __name__ == '__main__':
     CaseSet(case, set_config=standard_case_test_configuration)
     print(f'All extracted features based on cardinality: {all_features}')
 
-    optional_case_test_configuration = config(
+    optional_case_test_configuration = SetConfig(
         cases=case,
         turb_dataset=turb_datasete,
         dataset_path=dataset_path,
@@ -420,7 +420,7 @@ if __name__ == '__main__':
     print('\nCustom turb dataset with features filter:')
     CaseSet(case, set_config=optional_case_test_configuration).check_set()
 
-    extra_optional_case_test_configuration = config(
+    extra_optional_case_test_configuration = SetConfig(
         cases=case,
         turb_dataset=turb_datasete,
         dataset_path=dataset_path,

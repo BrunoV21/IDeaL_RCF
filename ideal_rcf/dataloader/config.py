@@ -3,7 +3,7 @@ from typing import List, Dict, Optional, Any
 from copy import deepcopy
 import numpy as np
 
-class config(object):
+class SetConfig(object):
     def __init__(self,
                  cases :List[str],
                  turb_dataset :str,

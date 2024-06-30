@@ -1,9 +1,9 @@
 try:
-    from dataloader.config import config
+    from dataloader.config import SetConfig
     from dataloader.caseset import CaseSet
 
 except ModuleNotFoundError:
-    from config import config
+    from config import SetConfig
     from caseset import CaseSet
 
 from typing import List, Optional
@@ -13,10 +13,10 @@ from copy import deepcopy
 class DataSet(object):
     def __init__(self,
                  cases :List[str]=None,
-                 set_config :config=None) -> None:
+                 set_config :SetConfig=None) -> None:
         
-        if not isinstance(set_config, config):
-            raise AssertionError(f'set_config must of instance {config()}')
+        if not isinstance(set_config, SetConfig):
+            raise AssertionError(f'set_config must of instance {SetConfig()}')
         
         self.config = set_config
         
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     labels_eV = ['a']
 
 
-    standard_case_test_configuration = config(
+    standard_case_test_configuration = SetConfig(
         cases=case,
         turb_dataset=turb_datasete,
         dataset_path=dataset_path,
@@ -165,7 +165,7 @@ if __name__ == '__main__':
     a.check_set()
     a.split_train_val_test()
 
-    optional_case_test_configuration = config(
+    optional_case_test_configuration = SetConfig(
         cases=case,
         turb_dataset=turb_datasete,
         dataset_path=dataset_path,
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     b.check_set()
     b.split_train_val_test()
 
-    mixer_case_test_configuration = config(
+    mixer_case_test_configuration = SetConfig(
         cases=case,
         turb_dataset=turb_datasete,
         dataset_path=dataset_path,
