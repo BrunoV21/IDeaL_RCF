@@ -18,6 +18,7 @@ class config(object):
                  features_scaler :Optional[str]='minmax',
                  labels_scaler :Optional[str]='standard',
                  labels_eV_scaler :Optional[str]='minmax',
+                 mixer_invariant_features_scaler :Optional[str]='minmax',
                  custom_turb_dataset :Optional[str]=None,
                  tensor_features_eV :Optional[str]=None,
                  labels_eV :Optional[List[str]]=None,
@@ -31,10 +32,12 @@ class config(object):
                  Cy :Optional[str]='Cy',
                  u_velocity_label :Optional[str]='um',
                  v_velocity_label :Optional[str]='vm',
+                 enable_mixer :Optional[bool]=False,
                  debug :Optional[bool]=False,
                  dataset_labels_dir :Optional[str]='labels',
                  pass_scalers_obj :Optional[Dict[str, Any]]=None,
-                 pass_transforms_obj :Optional[Dict[str, Any]]=None) -> None:
+                 pass_transforms_obj :Optional[Dict[str, Any]]=None,
+                 pass_mixer_propertires_obj :Optional[Dict[str, Any]]=None) -> None:
         
         self.cases = self.ensure_list_instance(cases)
         self.turb_dataset = turb_dataset
@@ -50,7 +53,10 @@ class config(object):
             self.scalers_obj.update(pass_scalers_obj)
 
         if pass_transforms_obj:
-            self.transforms_obj.update(pass_transforms_obj)        
+            self.transforms_obj.update(pass_transforms_obj)
+
+        if pass_mixer_propertires_obj:
+            self.mixer_propertires_obj = pass_mixer_propertires_obj
 
         ### applied to features
         self.features_scaler = deepcopy(self.scalers_obj.get(features_scaler))
@@ -62,8 +68,10 @@ class config(object):
 
         ### applied to eV labels and
         self.labels_eV_scaler = deepcopy(self.scalers_obj.get(labels_eV_scaler))
-        print(f'[WARNING] available scalers are keys from {self.scalers_obj} but got {labels_eV_scaler}: no labels_scaler will be applied. You can pass a custom scalers_obj containing sklearn scalers with pass_scalers_obj arg.') if (labels_eV_scaler and not self.labels_eV_scaler) else ...
+        print(f'[WARNING] available scalers are keys from {self.scalers_obj} but got {labels_eV_scaler}: no labels_eV_scaler will be applied. You can pass a custom scalers_obj containing sklearn scalers with pass_scalers_obj arg.') if (labels_eV_scaler and not self.labels_eV_scaler) else ...
         
+        self.mixer_invariant_features_scaler = deepcopy(self.scalers_obj.get(mixer_invariant_features_scaler))
+        print(f'[WARNING] available scalers are keys from {self.scalers_obj} but got {mixer_invariant_features_scaler}: no mixer_invariant_features_scaler will be applied. You can pass a custom scalers_obj containing sklearn scalers with pass_scalers_obj arg.') if (mixer_invariant_features_scaler and not self.mixer_invariant_features_scaler) else ...
 
         self.trainset = [[_case] for _case in self.ensure_list_instance(trainset)] if trainset else []
         self.valset = [[_case] for _case in self.ensure_list_instance(valset)] if valset else []
@@ -112,6 +120,8 @@ class config(object):
 
         self.dataset_labels_dir = dataset_labels_dir
 
+        self.enable_mixer = enable_mixer
+
         self.debug = debug
 
 
@@ -151,7 +161,7 @@ class config(object):
                 print('[transforms] applied cbrt')
 
         return features
-    
+
     @staticmethod
     def apply_log_no_signal_changes(features :np.array,
                                     debug :Optional[bool]=False):
@@ -162,6 +172,41 @@ class config(object):
             
         return features
 
+    @staticmethod
+    def PHLL_coords_norm(Cx :np.array, 
+                         Cy :np.array,
+                         case :str,
+                         PHLL_propeties :Dict={
+                            'H': 5.142, 
+                            'A':3.858
+                         }):
+        norm_Cx = Cx\
+            /(
+                PHLL_propeties['A']\
+                *float(f'{case[-3]}.{case[-1]}')\
+                +PHLL_propeties['H']
+            )
+        
+        return norm_Cx, Cy
+
+    @staticmethod
+    def BUMP_coords_norm(Cx :np.array, 
+                         Cy :np.array,
+                         case :str,
+                         BUMP_propeties :Dict={
+                            'C': 0.5*0.305
+                         }):
+        norm_Cx = Cx/BUMP_propeties['C']
+        norm_Cy = Cy/float(f'0.0{case[-2:]}')       
+        
+        return norm_Cx, norm_Cy
+
+    @staticmethod
+    def IDENTITY_coords(Cx :np.array, 
+                        Cy :np.array,
+                        case :str):        
+        return Cx, Cy        
+
     scalers_obj = {
         'minmax': MinMaxScaler(),
         'standard': StandardScaler()
@@ -170,4 +215,11 @@ class config(object):
     transforms_obj = {
         'multi_sign_cbrt': apply_cbrt_signal_changes.__get__(object),
         'same_sign_log': apply_log_no_signal_changes.__get__(object) 
+    }
+
+    ### function that transforms/normalizes x and y coordinates
+    mixer_propertires_obj = {
+        'PHLL': PHLL_coords_norm.__get__(object),
+        'BUMP': BUMP_coords_norm.__get__(object),
+        'CNDV': IDENTITY_coords.__get__(object)
     }

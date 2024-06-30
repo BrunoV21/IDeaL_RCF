@@ -25,6 +25,7 @@ class DataSet(object):
         self.features_scaler = self.config.features_scaler
         self.labels_scaler = self.config.labels_scaler
         self.labels_eV_scaler = self.config.labels_eV_scaler
+        self.mixer_invariant_features_scaler = self.config.mixer_invariant_features_scaler
         
         self.contents = [
             CaseSet(case=case, set_config=self.config)
@@ -44,6 +45,7 @@ class DataSet(object):
     
     def shuffle(self):
         ...
+        return 'Should be implemted at CaseSet level'
 
 
     def stack_case_sets(self,
@@ -63,7 +65,6 @@ class DataSet(object):
 
 
     def split_train_val_test(self):
-        ...
         local_contents = deepcopy(self.contents)
 
         train_set = []
@@ -83,10 +84,24 @@ class DataSet(object):
         test_set = self.stack_case_sets(test_set, set_id='test')
         
         if train_set:
+            ### build scalers
             self.features_scaler, self.labels_scaler, self.labels_eV_scaler = train_set._fit_scaler(self.features_scaler , self.labels_scaler, self.labels_eV_scaler)
-            train_set._scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler)
-            val_set._scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler) if self.config.valset else ...
-            test_set._scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler) if self.config.testset else ...
+            
+            ### build mixer features if enablred
+            if self.config.enable_mixer:
+                self.mixer_invariant_features_scaler = train_set._fit_mixer_scaler(self.mixer_invariant_features_scaler)
+                train_set._scale_mixer(self.mixer_invariant_features_scaler)
+                val_set._scale_mixer(self.mixer_invariant_features_scaler)
+                test_set._scale_mixer(self.mixer_invariant_features_scaler)
+
+                train_set._build_mixer_features(self.mixer_invariant_features_scaler)
+                val_set._build_mixer_features(self.mixer_invariant_features_scaler) if self.config.valset else ...
+                test_set._build_mixer_features(self.mixer_invariant_features_scaler) if self.config.testset else ...
+            
+            ### scale set
+            train_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler)
+            val_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler) if self.config.valset else ...
+            test_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler) if self.config.testset else ...
 
         tain_val_test = tuple(_set for _set in [train_set, val_set, test_set] if _set)
 
@@ -174,9 +189,36 @@ if __name__ == '__main__':
     b.check_set()
     b.split_train_val_test()
 
+    mixer_case_test_configuration = config(
+        cases=case,
+        turb_dataset=turb_datasete,
+        dataset_path=dataset_path,
+        trainset=trainset,
+        valset=valset,
+        testset=testset,
+        features=features,
+        tensor_features=tensor_features,
+        tensor_features_linear=tensor_features_linear,
+        labels=labels,
+        custom_turb_dataset=custom_turb_dataset,
+        tensor_features_eV=tensor_features_eV,
+        labels_eV=labels_eV,
+        features_filter=features_filter,
+        features_cardinality=features_cardinality,
+        enable_mixer=True,
+        debug=True,
+    )
+
+    print('\nCustom turb dataset with features filter and mixer enabled:')
+    c = DataSet(set_config=mixer_case_test_configuration)
+    c.check_set()
+    c.split_train_val_test()
 
     ### add simple tests here
+    ### improve check_set for dataset
     ### i.e don't pass teest_set and assert shape
+    ### shuffle method should be implemted at CaseSet level
 
-
-    
+    ### work on keras models module
+    ### work on infrascture
+    ### i.e receive CaseSet from DataSet, receive KerasModel -> Cross Val, Training Stuff, Realizability (store on case_set), Metrics, Visualization, Caching/Loading DataSet, CaseSets

@@ -16,7 +16,7 @@ class CaseSet(object):
                  set_id :Optional[str]=None) -> None:
         
         if not isinstance(set_config, config):
-            raise AssertionError(f'set_config must be of instance {config()}')
+            raise AssertionError(f'[config_error] set_config must be of instance {config()}')
         
         self.config = set_config
 
@@ -46,9 +46,15 @@ class CaseSet(object):
         if self.config.remove_outliers_threshold:
             self._remove_outliers()
 
-        if self.config.features_transforms:
-            self._transform_features()
+        if self.config.enable_mixer:
+            try:
+                self.augmented_spatial_mixing_coords = np.hstack(self.config.mixer_propertires_obj[self.case[0][:4]](self.Cx, self.Cy, self.case[0]))
 
+            except KeyError:
+                raise KeyError(f'[config_error] available mixer_properties_obj are {self.config.mixer_propertires_obj}. You can pass a new obj with arg pass_mixer_propertires_obj')
+        else:
+            self.augmented_spatial_mixing_coords = None
+        
         if self.config.debug:
             self.check_set()
 
@@ -177,7 +183,7 @@ class CaseSet(object):
         features_scaler.fit(self.features) if features_scaler else ...
         labels_scaler.fit(self.labels) if labels_scaler else ...
         labels_eV_scaler.fit(self.labels_eV) if (labels_eV_scaler and self.config.labels_eV) else ...
-
+        
         if self.config.debug:
             applied_scalers = [
                 scaler for scaler in [features_scaler, labels_scaler, labels_eV_scaler] 
@@ -188,12 +194,22 @@ class CaseSet(object):
         return features_scaler, labels_scaler, labels_eV_scaler
 
 
-    def _scale(self,
+    def _transform_scale(self,
                features_scaler :Union[StandardScaler, MinMaxScaler, None],
                labels_scaler :Union[StandardScaler, MinMaxScaler, None],
                labels_eV_scaler :Union[StandardScaler, MinMaxScaler, None]):
         
-        self.features = features_scaler.transform(self.features) if features_scaler else self.features
+        if self.config.features_transforms:
+            self._transform_features()
+        
+        try:
+            self.features = features_scaler.transform(self.features) if features_scaler else self.features
+
+        except ValueError: ### triggered by Mixer which has been scaled already
+            if self.config.debug:
+                features_scaler = None
+                print(f'[{self.set_id or self.case[0]}] [mixer_info] features_scaler was not applied as mixer_invariant_features_scaler was already applied')
+
         self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels
         self.labels_eV = labels_eV_scaler.transform(self.labels_eV) if labels_eV_scaler else self.labels_eV
         self.tensor_features_linear = labels_eV_scaler.transform(self.tensor_features_linear) if labels_eV_scaler else self.tensor_features_linear
@@ -204,6 +220,49 @@ class CaseSet(object):
                 if scaler
             ]
             print(f'[{self.set_id or self.case[0]}] applied scalers {applied_scalers}')
+    
+
+    def _fit_mixer_scaler(self,
+                          mixer_invariant_features_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        mixer_invariant_features_scaler.fit(self.features) if mixer_invariant_features_scaler else ...
+
+        if self.config.debug:
+            print(f'[{self.set_id or self.case[0]}] [mixer_info] fitted {mixer_invariant_features_scaler}')
+
+        return mixer_invariant_features_scaler  
+
+
+    def _scale_mixer(self,
+                      mixer_invariant_features_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        self.features = mixer_invariant_features_scaler.transform(self.features) if mixer_invariant_features_scaler else self.features
+
+        if self.config.debug:
+            print(f'[{self.set_id or self.case[0]}] [mixer_info] applied {mixer_invariant_features_scaler}')
+
+
+    def _build_mixer_features(self,
+                              mixer_invariant_features_scaler :Union[StandardScaler, MinMaxScaler, None]):
+       
+        mixer_features = np.array(
+            [
+                [
+                    [
+                        0 for iii in range(3) ### 1 + 2 dimenions -> features Cx, Cy 
+                    ] for ii in range(self.features.shape[1])
+                ] for i in range(self.features.shape[0])
+            ], dtype= np.float32
+        )
+        
+        for i in range(self.features.shape[0]):           
+            mixer_features[i,:,0] = mixer_invariant_features_scaler.transform(self.features[i].reshape(1,-1))[0] if mixer_invariant_features_scaler else self.features[i]
+            mixer_features[i,:,1:] = np.tile(self.augmented_spatial_mixing_coords[i], (self.features.shape[1],1))
+
+        self.features = mixer_features
+
+        if self.config.debug:
+            print(f'[{self.set_id or self.case[0]}] [mixer_info] building mixer features augmentend with spatial mixing with new shape: {self.features.shape}')
 
 
     def _ensure_eV_shapes(self):
@@ -234,7 +293,8 @@ class CaseSet(object):
             self.Cx,
             self.Cy,
             self.u,
-            self.v
+            self.v,
+            self.augmented_spatial_mixing_coords
         )
 
 
@@ -256,6 +316,7 @@ class CaseSet(object):
                 'Cy',
                 'u',
                 'v',
+                'augmented_spatial_mixing_coords',
             ],
             args[1:]
         ):
