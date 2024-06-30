@@ -32,6 +32,7 @@ class SetConfig(object):
                  Cy :Optional[str]='Cy',
                  u_velocity_label :Optional[str]='um',
                  v_velocity_label :Optional[str]='vm',
+                 random_seed :Optional[int]=42,
                  enable_mixer :Optional[bool]=False,
                  debug :Optional[bool]=False,
                  dataset_labels_dir :Optional[str]='labels',
@@ -119,6 +120,8 @@ class SetConfig(object):
         self.v = v_velocity_label
 
         self.dataset_labels_dir = dataset_labels_dir
+
+        self.random_seed = random_seed ### used for shuffling
 
         self.enable_mixer = enable_mixer
 

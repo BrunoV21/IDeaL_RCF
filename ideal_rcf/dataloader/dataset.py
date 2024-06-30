@@ -212,7 +212,9 @@ if __name__ == '__main__':
     print('\nCustom turb dataset with features filter and mixer enabled:')
     c = DataSet(set_config=mixer_case_test_configuration)
     c.check_set()
-    c.split_train_val_test()
+    train, val, test = c.split_train_val_test()
+    train.shuffle()
+    val.shuffle()
 
     ### add simple tests here
     ### improve check_set for dataset

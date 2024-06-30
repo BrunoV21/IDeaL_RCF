@@ -6,6 +6,7 @@ except ModuleNotFoundError:
 
 
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.utils import shuffle
 from typing import List, Union, Optional
 import numpy as np
 
@@ -116,6 +117,35 @@ class CaseSet(object):
                 features = np.column_stack((features, data))
 
         return features
+
+
+    def shuffle(self):
+            (
+                self.features,
+                self.tensor_features,
+                self.tensor_features_linear,
+                self.labels,
+                self.tensor_features_eV,
+                self.labels_eV,
+                self.Cx,
+                self.Cy,
+                self.u,
+                self.v,
+                # self.augmented_spatial_mixing_coords
+            ) = shuffle(
+                self.features,
+                self.tensor_features,
+                self.tensor_features_linear,
+                self.labels,
+                self.tensor_features_eV,
+                self.labels_eV,
+                self.Cx,
+                self.Cy,
+                self.u,
+                self.v,
+                # self.augmented_spatial_mixing_coords,
+                random_state=self.config.random_seed
+            )
 
 
     def _filter_features(self,):
