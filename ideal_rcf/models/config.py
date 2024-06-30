@@ -37,7 +37,6 @@ class BaseConfig(object):
             raise TypeError(f'{incoming} must be instance of {instance}')
 
 
-    #### create functon that receives list of attribuytes and checks if they are all not none
     def ensure_attr_group(self, attr_group):
         passed_attr = []
         empty_attr = []
@@ -52,13 +51,17 @@ class BaseConfig(object):
             raise AttributeError(f'{passed_attr} have been passed, to ensure functional beahaviour also pass {empty_attr}')
 
 
-
 class MixerConfig(BaseConfig):
-    def __init__(self,):
-        ...
-
-        
-        
+    def __init__(self,
+                 features_mlp_layers :int,
+                 features_mlp_units :int,
+                 normalization :Optional[str]='L',
+                 dropout :Optional[int]=0):
+        ### initializer, regularizer and activations are taken from main nn
+        self.features_mlp_layers = self.ensure_int_instance(features_mlp_layers)
+        self.features_mlp_units = self.ensure_int_instance(features_mlp_units)
+        self.dropout = self.ensure_int_instance(dropout)
+        self.normalization = normalization
 
 
 class ModelConfig(BaseConfig):
@@ -81,7 +84,7 @@ class ModelConfig(BaseConfig):
                  learning_rate :Optional[int]=None,
                  batch :Optional[int]=None,
                  epochs :Optional[int]=None,
-                 weights_initializer :Optional[Union[Any, None]]=LecunNormal(seed=0),
+                 initializer :Optional[Union[Any, None]]=LecunNormal(seed=0),
                  regularizer :Optional[Union[Any, None]]=L2(1e-8),
                  tbnn_activations :Optional[Union[str, Any]]='seliu',                 
                  evtbnn_activations :Optional[Union[str, Any]]='seliu',                 
@@ -113,7 +116,7 @@ class ModelConfig(BaseConfig):
         
         self.loss = loss
         self.optimizer = optimizer
-        self.weights_initializer = weights_initializer
+        self.weights_initializer = initializer
         self.regularizer = regularizer
         
         self.tbnn_activations = tbnn_activations
@@ -136,8 +139,10 @@ class ModelConfig(BaseConfig):
 
         self.tbnn_mixer_config = self.ensure_is_instance(tbnn_mixer_config, MixerConfig) 
         self.evtbnn_mixer_config = self.ensure_is_instance(evtbnn_mixer_config, MixerConfig) 
+        self.ensure_attr_group(['tbnn_mixer_config', 'evtbnn_mixer_config'])if self._evtbnn else ...
         self.evnn_mixer_config = self.ensure_is_instance(evnn_mixer_config, MixerConfig) 
-
+        self.ensure_attr_group(['tbnn_mixer_config', 'evtbnn_mixer_config', 'evnn_mixer_config'])if self._oevnltbnn else ...
+        
         self.debug = debug
 
 
@@ -155,19 +160,31 @@ if __name__ == '__main__':
     units_evnn = 150
     tensor_features_linear_eV_input_shape = (3,)
 
-    tbnn_mixer_config :Optional[Union[MixerConfig, None]]=None,
-    evtbnn_mixer_config :Optional[Union[MixerConfig, None]]=None,
-    evnn_mixer_config :Optional[Union[MixerConfig, None]]=None,
+    tbnn_mixer_config = MixerConfig(
+        features_mlp_layers=5,
+        features_mlp_units=150
+    )
+
+    evtbnn_mixer_config = MixerConfig(
+        features_mlp_layers=3,
+        features_mlp_units=150
+    )
+
+    evnn_mixer_config = MixerConfig(
+        features_mlp_layers=5,
+        features_mlp_units=150
+    )
 
     TBNN_config = ModelConfig(
         layers_tbnn=layers_tbnn,
         units_tbnn=units_tbnn,
         features_input_shape=features_input_shape,
-        tensor_features_input_shape=tensor_features_input_shape
+        tensor_features_input_shape=tensor_features_input_shape,
+        tbnn_mixer_config=tbnn_mixer_config
     )
     assert TBNN_config._evtbnn == False
     assert TBNN_config._oevnltbnn == False
-    print('Sucess creating TBNN ModelConfig obj')
+    print('Sucess creating mixer TBNN ModelConfig obj')
     
     eVTBNN_config = ModelConfig(
         layers_tbnn=layers_tbnn,
@@ -192,11 +209,14 @@ if __name__ == '__main__':
         tensor_features_linear_input_shape=tensor_features_linear_input_shape,
         layers_evnn=layers_evnn,
         units_evnn=units_evnn,
-        tensor_features_linear_eV_input_shape=tensor_features_linear_eV_input_shape
+        tensor_features_linear_eV_input_shape=tensor_features_linear_eV_input_shape,
+        tbnn_mixer_config=tbnn_mixer_config,
+        evtbnn_mixer_config=evtbnn_mixer_config,
+        evnn_mixer_config=evnn_mixer_config
     )
     assert OeVNLTBNN_config._evtbnn == True
     assert OeVNLTBNN_config._oevnltbnn == True
-    print('Sucess creating OeVNLTBNN_config ModelConfig obj')
+    print('Sucess creating mixer OeVNLTBNN_config ModelConfig obj')
 
 
 
