@@ -22,7 +22,7 @@ class BaseConfig(object):
 
 
     def ensure_int_instance(self, attribute):
-        if isinstance(attribute, int):
+        if isinstance(attribute, int) or not attribute:
             return attribute
         
         else:
@@ -118,13 +118,15 @@ class ModelConfig(BaseConfig):
         
         self.tbnn_activations = tbnn_activations
         self.ensure_attr_group(['layers_tbnn', 'units_tbnn', 'features_input_shape', 'tensor_features_input_shape', 'tbnn_activations'])
-        
+
         self.evtbnn_activations = evtbnn_activations
-        self.ensure_attr_group(['layers_evtbnn', 'units_evtbnn', 'tensor_features_linear_input_shape', 'evtbnn_activations'])
+        self.ensure_attr_group(['layers_evtbnn', 'units_evtbnn', 'tensor_features_linear_input_shape'])
+        self._evtbnn = True if self.layers_evtbnn else False ### used to trigger between tbnn and evtbnn in framework
 
         self.evnn_activations = evnn_activations
         self.eV_activation = eV_activation
-        self.ensure_attr_group(['layers_evnn', 'units_evnn', 'tensor_features_linear_eV_input_shape', 'evnn_activations', 'eV_activation'])
+        self.ensure_attr_group(['layers_evnn', 'units_evnn', 'tensor_features_linear_eV_input_shape'])
+        self._oevnltbnn = True if self.layers_evnn else False ### used to activate oevnltbnn in framework
 
         self.metrics = self.ensure_list_instance(metrics)
         self.keras_callbacks = self.ensure_list_instance(keras_callbacks)
@@ -135,11 +137,66 @@ class ModelConfig(BaseConfig):
         self.tbnn_mixer_config = self.ensure_is_instance(tbnn_mixer_config, MixerConfig) 
         self.evtbnn_mixer_config = self.ensure_is_instance(evtbnn_mixer_config, MixerConfig) 
         self.evnn_mixer_config = self.ensure_is_instance(evnn_mixer_config, MixerConfig) 
-        
+
         self.debug = debug
 
+
 if __name__ == '__main__':
-    print('Sucess')
+    layers_tbnn = 3
+    units_tbnn = 150
+    features_input_shape = (15,3)
+    tensor_features_input_shape = (20,3,3)
+
+    layers_evtbnn = 2
+    units_evtbnn = 150
+    tensor_features_linear_input_shape = (3,)
+
+    layers_evnn = 2
+    units_evnn = 150
+    tensor_features_linear_eV_input_shape = (3,)
+
+    tbnn_mixer_config :Optional[Union[MixerConfig, None]]=None,
+    evtbnn_mixer_config :Optional[Union[MixerConfig, None]]=None,
+    evnn_mixer_config :Optional[Union[MixerConfig, None]]=None,
+
+    TBNN_config = ModelConfig(
+        layers_tbnn=layers_tbnn,
+        units_tbnn=units_tbnn,
+        features_input_shape=features_input_shape,
+        tensor_features_input_shape=tensor_features_input_shape
+    )
+    assert TBNN_config._evtbnn == False
+    assert TBNN_config._oevnltbnn == False
+    print('Sucess creating TBNN ModelConfig obj')
+    
+    eVTBNN_config = ModelConfig(
+        layers_tbnn=layers_tbnn,
+        units_tbnn=units_tbnn,
+        features_input_shape=features_input_shape,
+        tensor_features_input_shape=tensor_features_input_shape,
+        layers_evtbnn=layers_evtbnn,
+        units_evtbnn=units_evtbnn,
+        tensor_features_linear_input_shape=tensor_features_linear_input_shape,
+    )
+    assert eVTBNN_config._evtbnn == True
+    assert eVTBNN_config._oevnltbnn == False
+    print('Sucess creating eVTBNN_config ModelConfig obj')
+
+    OeVNLTBNN_config = ModelConfig(
+        layers_tbnn=layers_tbnn,
+        units_tbnn=units_tbnn,
+        features_input_shape=features_input_shape,
+        tensor_features_input_shape=tensor_features_input_shape,
+        layers_evtbnn=layers_evtbnn,
+        units_evtbnn=units_evtbnn,
+        tensor_features_linear_input_shape=tensor_features_linear_input_shape,
+        layers_evnn=layers_evnn,
+        units_evnn=units_evnn,
+        tensor_features_linear_eV_input_shape=tensor_features_linear_eV_input_shape
+    )
+    assert OeVNLTBNN_config._evtbnn == True
+    assert OeVNLTBNN_config._oevnltbnn == True
+    print('Sucess creating OeVNLTBNN_config ModelConfig obj')
 
 
 
