@@ -44,7 +44,7 @@ class MixerResBlock(object):
                 self.config.features_mlp_units,
                 kernel_initializer=self.config.initializer,
                 kernel_regularizer=self.config.regularizer,
-                activation=self.config.activation
+                activation=self.config.activations
             )(x)  ### [Batch, Input Length, FF_Dim]
         
         x = Dropout(self.config.dropout)(x)

@@ -17,7 +17,7 @@ class TBNN(BaseModel):
         
         super().__init__(model_config)
 
-        self.HiddenProcessing = MixerResBlock(self.config.tbnn_mixer_config) \
+        self.HiddenProcessing = MixerResBlock(self.config.tbnn_mixer_config).layers \
             if self.config.tbnn_mixer_config \
             else \
             Dense(
@@ -46,7 +46,7 @@ class TBNN(BaseModel):
             activation = self.config.tbnn_activations
             )(hidden)
         
-        shaped_output = Reshape(self.config.tensor_features_input_shape)(output)
+        shaped_output = Reshape((self.config.tensor_features_input_shape[0],1,1))(output)
         anisotropy = Dot(axes=1)([shaped_output, input_tensor_features_layer])
         reshaped_anisotropy = Reshape((9,1))(anisotropy)
 

@@ -17,7 +17,7 @@ class OeVNN(BaseModel):
         
         super().__init__(model_config)
 
-        self.HiddenProcessing = MixerResBlock(self.config.evnn_mixer_config) \
+        self.HiddenProcessing = MixerResBlock(self.config.evnn_mixer_config).layers \
             if self.config.oevnn_mixer_config \
             else \
             Dense(
@@ -46,8 +46,10 @@ class OeVNN(BaseModel):
             activation = self.config.eV_activation,
             )(hidden)
         
+        output = -2*output
+        
         optimal_viscosity = Multiply()([output, input_tensor_features_oev_linear_layer])
-        reshaped_optimal_viscosity = Reshape((self.config.tensor_features_linear_eV_input_shape,1))(optimal_viscosity)
+        reshaped_optimal_viscosity = Reshape((self.config.tensor_features_linear_oev_input_shape[0],1))(optimal_viscosity)
 
         model = Model(
             inputs=[
@@ -55,10 +57,10 @@ class OeVNN(BaseModel):
                 input_tensor_features_oev_linear_layer
             ],
             outputs=[
-                optimal_viscosity
+                reshaped_optimal_viscosity
             ]
         )
 
-        model._name ='mixer_oevnn' if self.config.evtbnn_mixer_config else 'oevnn'
+        model._name ='mixer_oevnn' if self.config.oevnn_mixer_config else 'oevnn'
 
         return model

@@ -17,7 +17,7 @@ class eVNN(BaseModel):
         
         super().__init__(model_config)
 
-        self.HiddenProcessing = MixerResBlock(self.config.evnn_mixer_config) \
+        self.HiddenProcessing = MixerResBlock(self.config.evnn_mixer_config).layers \
             if self.config.tbnn_mixer_config \
             else \
             Dense(
@@ -47,7 +47,7 @@ class eVNN(BaseModel):
             )(hidden)
         
         effective_viscosity = Multiply()([output, input_tensor_features_linear_layer])
-        reshaped_effective_viscosity = Reshape((self.config.tensor_features_linear_eV_input_shape,1))(effective_viscosity)
+        reshaped_effective_viscosity = Reshape((self.config.tensor_features_linear_input_shape[0],1))(effective_viscosity)
 
         model = Model(
             inputs=[
