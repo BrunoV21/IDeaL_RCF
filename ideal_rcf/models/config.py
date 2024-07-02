@@ -89,6 +89,7 @@ class ModelConfig(BaseConfig):
                  optimizer :Optional[Any]=Adam,
                  loss :Optional[Any]=Huber(),
                  learning_rate :Optional[int]=None,
+                 learning_rate_oevnn :Optional[int]=None,
                  batch :Optional[int]=None,
                  epochs :Optional[int]=None,
                  initializer :Optional[Union[Any, None]]=LecunNormal(seed=0),
@@ -117,9 +118,10 @@ class ModelConfig(BaseConfig):
         self.units_oevnn = self.ensure_int_instance(units_oevnn)
         self.tensor_features_linear_oev_input_shape = self.ensure_is_instance(tensor_features_linear_oev_input_shape, tuple)
 
-        self.learning_rate = self.ensure_int_instance(learning_rate)
+        self.learning_rate = learning_rate
         self.batch = self.ensure_int_instance(batch)
         self.epochs = self.ensure_int_instance(epochs)
+        self.learning_rate_oevnn = learning_rate_oevnn if learning_rate_oevnn else self.learning_rate
         
         self.loss = loss
         self.optimizer = optimizer
