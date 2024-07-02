@@ -10,7 +10,9 @@ except ModuleNotFoundError:
     from evnn import eVNN
     from oevnn import OeVNN
 
-from tensorflow.keras.layers import Input
+from tensorflow.keras.layers import Input, Lambda, Add, Concatenate
+from tensorflow.keras import Model
+import tensorflow as tf
 
 class FrameWork(object):
     def __init__(self,
@@ -21,8 +23,14 @@ class FrameWork(object):
         
         self.config = model_config
 
+        tf.random.set_seed(42)
+
+        self.models = self.build()
+
 
     def build(self,):
+
+        model = {}
         ### need input layers here and pass them to build methods
         input_features_layer = Input(
             shape=self.config.features_input_shape,
@@ -34,18 +42,75 @@ class FrameWork(object):
             name='tensor_features_input_layer'
         )
 
-        tbnn_model = TBNN(self.model_config).build(input_features_layer, input_tensor_features_layer)
-        
-        if self.config._evtbnn:
+        tbnn_model = TBNN(self.config).build(input_features_layer, input_tensor_features_layer)
+        tbnn_output = tbnn_model([
+            input_features_layer,
+            input_tensor_features_layer
+        ])
+
+        tbnn_output_0 = Lambda(lambda x: x[:,0])(tbnn_output)
+        tbnn_output_1 = Lambda(lambda x: x[:,1])(tbnn_output)
+        tbnn_output_4 = Lambda(lambda x: x[:,4])(tbnn_output)
+
+
+        if self.config._evtbnn: 
             input_tensor_features_linear_layer = Input(
                 shape=self.config.tensor_features_linear_input_shape,
                 name='tensor_features_evnn_input_layer'
             )
 
-            evnn_model = eVNN(self.model_config).build(input_features_layer, input_tensor_features_linear_layer)
+            evnn_model = eVNN(self.config).build(input_features_layer, input_tensor_features_linear_layer)
+            evnn_output = evnn_model([
+                input_features_layer,
+                input_tensor_features_linear_layer
+            ])
+
+            evnn_output_0 = Lambda(lambda x: -x[:,0])(evnn_output)
+            evnn_output_1 = Lambda(lambda x: -x[:,1])(evnn_output)
+            evnn_output_4 = Lambda(lambda x: -x[:,2])(evnn_output)
             ### add tomorrow
             ### support for evtbnn here
             # evtbnn_model = eVTBNN(tbnn_model, evnn_model)
+
+            evtbnn_output_0 = Add()([tbnn_output_0, evnn_output_0])            
+            evtbnn_output_1 = Add()([tbnn_output_1, evnn_output_1])
+            evtbnn_output_4 = Add()([tbnn_output_4, evnn_output_4])
+
+            evtbnn_output_6 = Add()([evtbnn_output_0, evtbnn_output_4])
+
+            merged_output = Concatenate()([
+                evtbnn_output_0,
+                evtbnn_output_1,
+                evtbnn_output_4,
+                tf.math.negative(evtbnn_output_6)
+            ])
+
+            model['evtbnn'] = Model(
+                inputs=[
+                    input_features_layer,
+                    input_tensor_features_layer,
+                    input_tensor_features_linear_layer
+                ],
+                outputs=[
+                    merged_output
+                ]
+            )
+            model['evtbnn']._name = 'evtbnn_framework'
+
+        else:
+            model['tbnn'] = Model(
+                inputs=[
+                    input_features_layer,
+                    input_tensor_features_layer,
+                    input_tensor_features_linear_layer
+                ],
+                outputs=[
+                    merged_output
+                ]
+            )
+
+            model['tbnn']._name = 'tbnn_framework'
+
         
         if self.config._oevnltbnn:
             input_tensor_features_oev_linear_layer = Input(
@@ -53,10 +118,34 @@ class FrameWork(object):
                 name='tensor_features_oevnn_input_layer'
             )
 
-            oevnn_model = OeVNN(self.model_config).build(input_features_layer, input_tensor_features_oev_linear_layer)
-            ### add tomorrow 
-            ### support for oevnltbnn here
-        
+            oevnn_model = OeVNN(self.config).build(input_features_layer, input_tensor_features_oev_linear_layer)
+            oevnn_output = oevnn_model([input_features_layer, input_tensor_features_oev_linear_layer])
+
+            model['oevnn'] = Model(
+                inputs=[
+                    input_features_layer,
+                    input_tensor_features_oev_linear_layer
+                ],
+                outputs=[
+                    oevnn_output
+                ]
+            )
+            model['oevnn']._name = 'oevnltbnn_framework'
+
+        return model
+    
+
+    def compile_models(self):
+        for model_type in self.models.keys():
+            self.models[model_type].compile(
+                loss=self.config.loss,
+                optimizer=self.config.optimizer(self.config.learning_rate_oevnn if model_type == 'oevnn' else self.config.learning_rate),
+                metrics=self.config.metrics
+            )
+
+            if self.config.debug:
+                print(self.models[model_type].summary())
+
 
 if __name__ == '__main__':
     layers_tbnn = 3
@@ -64,25 +153,28 @@ if __name__ == '__main__':
     features_input_shape = (15,3)
     tensor_features_input_shape = (20,3,3)
 
-    layers_evtbnn = 2
-    units_evtbnn = 150
-    tensor_features_linear_input_shape = (3,)
-
     layers_evnn = 2
     units_evnn = 150
-    tensor_features_linear_eV_input_shape = (3,)
+    tensor_features_linear_input_shape = (3,)
+
+    layers_oevnn = 2
+    units_oevnn = 150
+    tensor_features_linear_oev_input_shape = (3,)
+
+    learning_rate=5e-4
+    learning_rate_oevnn=1e-4
 
     tbnn_mixer_config = MixerConfig(
         features_mlp_layers=5,
         features_mlp_units=150
     )
 
-    evtbnn_mixer_config = MixerConfig(
+    evnn_mixer_config = MixerConfig(
         features_mlp_layers=3,
         features_mlp_units=150
     )
 
-    evnn_mixer_config = MixerConfig(
+    oevnn_mixer_config = MixerConfig(
         features_mlp_layers=5,
         features_mlp_units=150
     )
@@ -103,8 +195,8 @@ if __name__ == '__main__':
         units_tbnn=units_tbnn,
         features_input_shape=features_input_shape,
         tensor_features_input_shape=tensor_features_input_shape,
-        layers_evtbnn=layers_evtbnn,
-        units_evtbnn=units_evtbnn,
+        layers_evnn=layers_evnn,
+        units_evnn=units_evnn,
         tensor_features_linear_input_shape=tensor_features_linear_input_shape,
     )
     assert eVTBNN_config._evtbnn == True
@@ -116,19 +208,25 @@ if __name__ == '__main__':
         units_tbnn=units_tbnn,
         features_input_shape=features_input_shape,
         tensor_features_input_shape=tensor_features_input_shape,
-        layers_evtbnn=layers_evtbnn,
-        units_evtbnn=units_evtbnn,
-        tensor_features_linear_input_shape=tensor_features_linear_input_shape,
         layers_evnn=layers_evnn,
         units_evnn=units_evnn,
-        tensor_features_linear_eV_input_shape=tensor_features_linear_eV_input_shape,
+        tensor_features_linear_input_shape=tensor_features_linear_input_shape,
+        layers_oevnn=layers_evnn,
+        units_oevnn=units_evnn,
+        tensor_features_linear_oev_input_shape=tensor_features_linear_oev_input_shape,
+        learning_rate=learning_rate,
+        learning_rate_oevnn=learning_rate_oevnn,
         tbnn_mixer_config=tbnn_mixer_config,
-        evtbnn_mixer_config=evtbnn_mixer_config,
-        evnn_mixer_config=evnn_mixer_config
+        evnn_mixer_config=evnn_mixer_config,
+        oevnn_mixer_config=oevnn_mixer_config,
+        debug=True
     )
     assert OeVNLTBNN_config._evtbnn == True
     assert OeVNLTBNN_config._oevnltbnn == True
     print('Sucess creating mixer OeVNLTBNN_config ModelConfig obj')
+
+    oevnltbnn = FrameWork(OeVNLTBNN_config)
+    oevnltbnn.compile_models()
 
 
 
