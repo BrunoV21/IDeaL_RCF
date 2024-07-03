@@ -12,6 +12,7 @@ except ModuleNotFoundError:
 
 from tensorflow.keras.layers import Input, Lambda, Add, Concatenate
 from tensorflow.keras import Model
+from types import SimpleNamespace
 import tensorflow as tf
 
 class FrameWork(object):
@@ -25,7 +26,9 @@ class FrameWork(object):
 
         tf.random.set_seed(42)
 
-        self.models = self.build()
+        self.models = SimpleNamespace()
+        self.build()
+        
 
 
     def build(self,):
@@ -68,9 +71,6 @@ class FrameWork(object):
             evnn_output_0 = Lambda(lambda x: -x[:,0])(evnn_output)
             evnn_output_1 = Lambda(lambda x: -x[:,1])(evnn_output)
             evnn_output_4 = Lambda(lambda x: -x[:,2])(evnn_output)
-            ### add tomorrow
-            ### support for evtbnn here
-            # evtbnn_model = eVTBNN(tbnn_model, evnn_model)
 
             evtbnn_output_0 = Add()([tbnn_output_0, evnn_output_0])            
             evtbnn_output_1 = Add()([tbnn_output_1, evnn_output_1])
@@ -85,7 +85,7 @@ class FrameWork(object):
                 tf.math.negative(evtbnn_output_6)
             ])
 
-            model['evtbnn'] = Model(
+            evtbnn = Model(
                 inputs=[
                     input_features_layer,
                     input_tensor_features_layer,
@@ -95,10 +95,11 @@ class FrameWork(object):
                     merged_output
                 ]
             )
-            model['evtbnn']._name = 'evtbnn_framework'
+            evtbnn._name = 'evtbnn_framework'
+            self.models.evtbnn=evtbnn
 
         else:
-            model['tbnn'] = Model(
+            tbnn = Model(
                 inputs=[
                     input_features_layer,
                     input_tensor_features_layer,
@@ -109,7 +110,8 @@ class FrameWork(object):
                 ]
             )
 
-            model['tbnn']._name = 'tbnn_framework'
+            tbnn._name = 'tbnn_framework'
+            self.models.tbnn=tbnn
 
         
         if self.config._oevnltbnn:
@@ -121,7 +123,7 @@ class FrameWork(object):
             oevnn_model = OeVNN(self.config).build(input_features_layer, input_tensor_features_oev_linear_layer)
             oevnn_output = oevnn_model([input_features_layer, input_tensor_features_oev_linear_layer])
 
-            model['oevnn'] = Model(
+            oevnn = Model(
                 inputs=[
                     input_features_layer,
                     input_tensor_features_oev_linear_layer
@@ -130,21 +132,25 @@ class FrameWork(object):
                     oevnn_output
                 ]
             )
-            model['oevnn']._name = 'oevnltbnn_framework'
-
-        return model
+            oevnn._name = 'oevnn_framework'
+            self.models.oevnn = oevnn
+            self.models.nltbnn = self.models.evtbnn
+            self.models.nltbnn._name = 'nltbnn_framework'
+            del self.models.evtbnn
     
 
     def compile_models(self):
-        for model_type in self.models.keys():
-            self.models[model_type].compile(
+        for model_type, model in self.models.__dict__.items():
+            model.compile(
                 loss=self.config.loss,
                 optimizer=self.config.optimizer(self.config.learning_rate_oevnn if model_type == 'oevnn' else self.config.learning_rate),
                 metrics=self.config.metrics
             )
+            setattr(self.models, model_type, model)
 
-            if self.config.debug:
-                print(self.models[model_type].summary())
+        if self.config.debug:
+            for model in self.models.__dict__.values():
+                print(model.summary())
 
 
 if __name__ == '__main__':
@@ -211,8 +217,8 @@ if __name__ == '__main__':
         layers_evnn=layers_evnn,
         units_evnn=units_evnn,
         tensor_features_linear_input_shape=tensor_features_linear_input_shape,
-        layers_oevnn=layers_evnn,
-        units_oevnn=units_evnn,
+        layers_oevnn=layers_oevnn,
+        units_oevnn=units_oevnn,
         tensor_features_linear_oev_input_shape=tensor_features_linear_oev_input_shape,
         learning_rate=learning_rate,
         learning_rate_oevnn=learning_rate_oevnn,
@@ -227,8 +233,3 @@ if __name__ == '__main__':
 
     oevnltbnn = FrameWork(OeVNLTBNN_config)
     oevnltbnn.compile_models()
-
-
-
-
-
