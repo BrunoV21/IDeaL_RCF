@@ -107,7 +107,10 @@ class ModelConfig(BaseConfig):
 
         self.layers_tbnn = self.ensure_int_instance(layers_tbnn)
         self.units_tbnn = self.ensure_int_instance(units_tbnn)
-        self.features_input_shape = self.ensure_is_instance(features_input_shape, tuple)
+        try:
+            self.features_input_shape = int(features_input_shape)
+        except TypeError:
+            self.features_input_shape = self.ensure_is_instance(features_input_shape,  tuple)
         self.tensor_features_input_shape = self.ensure_is_instance(tensor_features_input_shape, tuple)
         
         self.layers_evnn = self.ensure_int_instance(layers_evnn)

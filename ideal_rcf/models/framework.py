@@ -36,7 +36,7 @@ class FrameWork(object):
         model = {}
         ### need input layers here and pass them to build methods
         input_features_layer = Input(
-            shape=self.config.features_input_shape,
+            shape=(self.config.features_input_shape) if type(self.config.features_input_shape)==int else self.config.features_input_shape,
             name='features_input_layer'
         )
 
@@ -99,11 +99,19 @@ class FrameWork(object):
             self.models.evtbnn=evtbnn
 
         else:
+            tbnn_output_6 = Add()([tbnn_output_0, tbnn_output_4])
+
+            merged_output = Concatenate()([
+                tbnn_output_0,
+                tbnn_output_1,
+                tbnn_output_4,
+                tf.math.negative(tbnn_output_6)
+            ])
+
             tbnn = Model(
                 inputs=[
                     input_features_layer,
                     input_tensor_features_layer,
-                    input_tensor_features_linear_layer
                 ],
                 outputs=[
                     merged_output
@@ -188,26 +196,34 @@ if __name__ == '__main__':
     TBNN_config = ModelConfig(
         layers_tbnn=layers_tbnn,
         units_tbnn=units_tbnn,
-        features_input_shape=features_input_shape,
+        features_input_shape=15,
         tensor_features_input_shape=tensor_features_input_shape,
-        tbnn_mixer_config=tbnn_mixer_config
+        debug=True,
+        # tbnn_mixer_config=tbnn_mixer_config
     )
     assert TBNN_config._evtbnn == False
     assert TBNN_config._oevnltbnn == False
-    print('Sucess creating mixer TBNN ModelConfig obj')
+    print('Sucess creating TBNN ModelConfig obj')
+    tbnn = FrameWork(TBNN_config)
+    tbnn.compile_models()
     
     eVTBNN_config = ModelConfig(
         layers_tbnn=layers_tbnn,
         units_tbnn=units_tbnn,
-        features_input_shape=features_input_shape,
+        features_input_shape=15,
         tensor_features_input_shape=tensor_features_input_shape,
         layers_evnn=layers_evnn,
         units_evnn=units_evnn,
         tensor_features_linear_input_shape=tensor_features_linear_input_shape,
+        # tbnn_mixer_config=tbnn_mixer_config,
+        # evnn_mixer_config=evnn_mixer_config,
+        debug=True,
     )
     assert eVTBNN_config._evtbnn == True
     assert eVTBNN_config._oevnltbnn == False
     print('Sucess creating eVTBNN_config ModelConfig obj')
+    evtbnn = FrameWork(eVTBNN_config)
+    evtbnn.compile_models()
 
     OeVNLTBNN_config = ModelConfig(
         layers_tbnn=layers_tbnn,
@@ -230,6 +246,9 @@ if __name__ == '__main__':
     assert OeVNLTBNN_config._evtbnn == True
     assert OeVNLTBNN_config._oevnltbnn == True
     print('Sucess creating mixer OeVNLTBNN_config ModelConfig obj')
-
     oevnltbnn = FrameWork(OeVNLTBNN_config)
     oevnltbnn.compile_models()
+
+
+    ### put in place checl in config where if mixer config shape of features input shape >= 1, else int
+    ### include train method
