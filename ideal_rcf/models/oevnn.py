@@ -17,7 +17,7 @@ class OeVNN(BaseModel):
         
         super().__init__(model_config)
 
-        self.HiddenProcessing = MixerResBlock(self.config.evnn_mixer_config).layers \
+        self.HiddenProcessing = MixerResBlock(self.config.oevnn_mixer_config).layers \
             if self.config.oevnn_mixer_config \
             else \
             Dense(
