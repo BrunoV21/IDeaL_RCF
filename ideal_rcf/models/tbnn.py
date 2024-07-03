@@ -19,20 +19,25 @@ class TBNN(BaseModel):
 
         self.HiddenProcessing = MixerResBlock(self.config.tbnn_mixer_config).layers \
             if self.config.tbnn_mixer_config \
-            else \
-            Dense(
+            else self.Dense
+
+
+    def Dense(self, x):
+        x = Dense(
                 self.config.units_tbnn,
                 kernel_initializer=self.config.initializer,
                 kernel_regularizer=self.config.regularizer, 
                 activation = self.config.tbnn_activations
-            )
+        )(x)
+
+        return x
 
 
     def build(self,
               input_features_layer :Input,
               input_tensor_features_layer :Input):
         
-        hidden = input_features_layer 
+        hidden = input_features_layer
         for i in range(self.config.layers_tbnn):
             hidden = self.HiddenProcessing(hidden)
 

@@ -19,13 +19,18 @@ class OeVNN(BaseModel):
 
         self.HiddenProcessing = MixerResBlock(self.config.oevnn_mixer_config).layers \
             if self.config.oevnn_mixer_config \
-            else \
-            Dense(
-                self.config.units_oevnn,
+            else self.Dense
+
+
+    def Dense(self, x):
+        x = Dense(
+                self.config.units_tbnn,
                 kernel_initializer=self.config.initializer,
                 kernel_regularizer=self.config.regularizer, 
-                activation = self.config.oevnn_activations
-            )
+                activation = self.config.tbnn_activations
+        )(x)
+
+        return x
 
 
     def build(self,
