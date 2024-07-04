@@ -21,8 +21,6 @@ class SetConfig(object):
                  mixer_invariant_features_scaler :Optional[str]='minmax',
                  custom_turb_dataset :Optional[str]=None,
                  tensor_features_eV :Optional[str]=None,
-                 labels_eV :Optional[List[str]]=None,
-                 labels_NL :Optional[List[str]]=None,
                  features_filter :Optional[List[str]]=None,
                  features_cardinality :Optional[List[int]]=None,
                  features_z_score_outliers_threshold :Optional[int]=None,
@@ -48,7 +46,7 @@ class SetConfig(object):
         self.features = self.ensure_list_instance(features)
         self.tensor_features = self.ensure_str_instance(tensor_features)
         self.tensor_features_linear = self.ensure_str_instance(tensor_features_linear)
-        self.labels = self.ensure_str_instance(labels if not labels_NL else labels_NL)        
+        self.labels = self.ensure_str_instance(labels)# if not labels_NL else labels_NL)        
 
         if pass_scalers_obj:
             self.scalers_obj.update(pass_scalers_obj)
@@ -81,7 +79,7 @@ class SetConfig(object):
         self.tensor_features_eV = self.ensure_str_instance(tensor_features_eV)
         
         ### if labels_eV is passed labels is used as the labels of NL term
-        self.labels_eV = self.ensure_str_instance(labels_eV)
+        # self.labels_eV = self.ensure_str_instance(labels_eV)
 
         self.features_filter = self.ensure_list_instance(features_filter)
         
@@ -208,7 +206,7 @@ class SetConfig(object):
     def IDENTITY_coords(Cx :np.array, 
                         Cy :np.array,
                         case :str):        
-        return Cx, Cy        
+        return Cx, Cy
 
     scalers_obj = {
         'minmax': MinMaxScaler(),

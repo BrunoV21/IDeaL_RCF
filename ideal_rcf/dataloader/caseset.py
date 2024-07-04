@@ -32,7 +32,7 @@ class CaseSet(object):
         self.labels = self.loadLabels(self.config.labels)
 
         self.tensor_features_eV = self.loadCombinedArray(self.config.tensor_features_eV)
-        self.labels_eV = self.loadLabels(self.config.labels_eV)
+        # self.labels_eV = self.loadLabels(self.config.labels_eV)
         self._ensure_eV_shapes()
 
         self.Cx = self.loadCombinedArray(self.config.Cx)
@@ -185,7 +185,7 @@ class CaseSet(object):
         self.labels = np.delete(self.labels, outliers_index, axis=0)
         
         self.tensor_features_eV = np.delete(self.tensor_features_eV, outliers_index, axis=0) if self.config.tensor_features_eV else None
-        self.labels_eV = np.delete(self.labels_eV, outliers_index, axis=0) if self.config.labels_eV else None
+        #self.labels_eV = np.delete(self.labels_eV, outliers_index, axis=0) if self.config.labels_eV else None
 
         self.Cx = np.delete(self.Cx, outliers_index, axis=0)
         self.Cy = np.delete(self.Cy, outliers_index, axis=0)
@@ -211,8 +211,11 @@ class CaseSet(object):
                     labels_eV_scaler :Union[StandardScaler, MinMaxScaler, None]):
         
         features_scaler.fit(self.features) if features_scaler else ...
-        labels_scaler.fit(self.labels) if labels_scaler else ...
-        labels_eV_scaler.fit(self.labels_eV) if (labels_eV_scaler and self.config.labels_eV) else ...
+        try: 
+            bool(self.tensor_features_eV);
+            labels_eV_scaler.fit(self.labels) if labels_eV_scaler  else ...
+        except ValueError:
+            labels_scaler.fit(self.labels) if labels_scaler else ...
         
         if self.config.debug:
             applied_scalers = [
@@ -240,8 +243,12 @@ class CaseSet(object):
                 features_scaler = None
                 print(f'[{self.set_id or self.case[0]}] [mixer_info] features_scaler was not applied as mixer_invariant_features_scaler was already applied')
 
-        self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels
-        self.labels_eV = labels_eV_scaler.transform(self.labels_eV) if labels_eV_scaler else self.labels_eV
+        try:
+            bool(self.tensor_features_eV)
+            self.labels = labels_eV_scaler.transform(self.labels) if labels_eV_scaler else self.labels
+        except ValueError:
+            self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels 
+
         self.tensor_features_linear = labels_eV_scaler.transform(self.tensor_features_linear) if labels_eV_scaler else self.tensor_features_linear
 
         if self.config.debug:
@@ -296,19 +303,19 @@ class CaseSet(object):
 
 
     def _ensure_eV_shapes(self):
-        if bool(self.config.labels_eV) == bool(self.config.tensor_features_eV):
+        if bool(self.config.labels) and bool(self.config.tensor_features_eV):
             if self.config.tensor_features_eV:
                 tensor_shape = self.tensor_features_eV.shape[1]
-                if self.labels_eV.shape[1] > tensor_shape:
+                if self.labels.shape[1] > tensor_shape:
                     if self.config.debug:
                         print('')
-                    self.labels_eV = self.labels_eV[:,:tensor_shape]
+                    self.labels = self.labels[:,:tensor_shape]
 
                 elif self.labels_eV.shape[1] < tensor_shape:
-                    raise ValueError(f'[{self.set_id or self.case[0]}] Config_Error: labels_eV ({self.config.labels_eV}) and tensor_features_eV ({self.config.tensor_features_eV} must have same dim 1 but have ({self.labels_eV.shape[1] }) and ({tensor_shape})')
+                    raise ValueError(f'[{self.set_id or self.case[0]}] Config_Error: labels ({self.config.labels}) and tensor_features_eV ({self.config.tensor_features_eV} must have same dim 1 but have ({self.labels.shape[1] }) and ({tensor_shape})')
 
-        else:
-            raise AssertionError(f'[{self.set_id or self.case[0]}] Config_Error: labels_eV ({self.config.labels_eV}) and tensor_features_eV ({self.config.tensor_features_eV} must be passed simultaneously)')
+        # else:
+        #     raise AssertionError(f'[{self.set_id or self.case[0]}] Config_Error: labels ({self.config.labels}) and tensor_features_eV ({self.config.tensor_features_eV} must be passed simultaneously)')
 
 
     def _export_for_stack(self):
@@ -319,7 +326,7 @@ class CaseSet(object):
             self.tensor_features_linear,
             self.labels,
             self.tensor_features_eV,
-            self.labels_eV,
+            # self.labels_eV,
             self.Cx,
             self.Cy,
             self.u,
@@ -341,7 +348,7 @@ class CaseSet(object):
                 'tensor_features_linear',
                 'labels',
                 'tensor_features_eV',
-                'labels_eV',
+                # 'labels_eV',
                 'Cx',
                 'Cy',
                 'u',
@@ -365,7 +372,7 @@ class CaseSet(object):
             'tensor_features_linear',
             'labels',
             'tensor_features_eV',
-            'labels_eV',
+            # 'labels_eV',
             'Cx',
             'Cy',
             'u_velocity_label',
@@ -441,8 +448,8 @@ if __name__ == '__main__':
         tensor_features_linear=tensor_features_linear,
         labels=labels,
         custom_turb_dataset=custom_turb_dataset,
-        tensor_features_eV=tensor_features_eV,
-        labels_eV=labels_eV,
+        # tensor_features_eV=tensor_features_eV,
+        # labels_eV=labels_eV,
         features_filter=features_filter,
         features_cardinality=features_cardinality
     )
@@ -461,7 +468,7 @@ if __name__ == '__main__':
         labels=labels,
         custom_turb_dataset=custom_turb_dataset,
         tensor_features_eV=tensor_features_eV,
-        labels_eV=labels_eV,
+        # labels_eV=labels_eV,
         features_filter=features_filter,
         features_cardinality=features_cardinality,
         features_transforms=features_transforms,
