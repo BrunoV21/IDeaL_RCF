@@ -102,6 +102,7 @@ class ModelConfig(BaseConfig):
                  keras_callbacks :Optional[Union[List[Union[ReduceLROnPlateau, EarlyStopping, Any]], None]]=None,
                  model_id :Optional[str]=None,
                  random_seed :Optional[int]=42,
+                 verbose :Optional[int]=1,
                  debug :Optional[bool]=False,
                  ) -> None:
 
@@ -147,6 +148,7 @@ class ModelConfig(BaseConfig):
         self.keras_callbacks = self.ensure_list_instance(keras_callbacks)
 
         self.model_id = self.ensure_str_instance(model_id) if model_id else ''
+        self.verbose = self.ensure_int_instance(verbose)
         self.random_seed = self.ensure_int_instance(random_seed)
 
         self.tbnn_mixer_config = self.ensure_is_instance(tbnn_mixer_config, MixerConfig) 
@@ -155,6 +157,14 @@ class ModelConfig(BaseConfig):
         self.oevnn_mixer_config = self.ensure_is_instance(oevnn_mixer_config, MixerConfig) 
         self.ensure_attr_group(['tbnn_mixer_config', 'evnn_mixer_config', 'oevnn_mixer_config'])if self._oevnltbnn else ...
         
+        try:
+            len(self.features_input_shape)
+            if not self.tbnn_mixer_config:
+                raise ValueError(f'when mixer config is not passed features_input_shape should have len = 1, but got {self.features_input_shape}') 
+        except TypeError:
+             if self.tbnn_mixer_config:
+                raise ValueError(f'when mixer config is passed features_input_shape should have len >= 1, but got {self.features_input_shape}') 
+
         self.debug = debug
 
 
