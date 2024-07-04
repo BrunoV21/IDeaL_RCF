@@ -1,8 +1,12 @@
+from types import SimpleNamespace
+
 try:
     from models.config import ModelConfig, MixerConfig
     from models.tbnn import TBNN
     from models.evnn import eVNN
     from models.oevnn import OeVNN
+    from dataloader.dataset import DataSet
+    from dataloader.caseset import CaseSet
 
 except ModuleNotFoundError:
     from config import ModelConfig, MixerConfig
@@ -10,10 +14,17 @@ except ModuleNotFoundError:
     from evnn import eVNN
     from oevnn import OeVNN
 
+    DataSet = SimpleNamespace()
+    DataSet.labels_scaler = None
+    DataSet.labels_eV_scaler = None
+
+    CaseSet = SimpleNamespace()
+
 from tensorflow.keras.layers import Input, Lambda, Add, Concatenate
 from tensorflow.keras import Model
-from types import SimpleNamespace
+from typing import Optional
 import tensorflow as tf
+import polars as pl
 
 class FrameWork(object):
     def __init__(self,
@@ -27,8 +38,8 @@ class FrameWork(object):
         tf.random.set_seed(42)
 
         self.models = SimpleNamespace()
+        self.history = SimpleNamespace()
         self.build()
-        
 
 
     def build(self,):
@@ -145,6 +156,8 @@ class FrameWork(object):
             self.models.nltbnn = self.models.evtbnn
             self.models.nltbnn._name = 'nltbnn_framework'
             del self.models.evtbnn
+
+    ### in CaseSet/DataSet need to add support to transform and inverse transform features from eV
     
 
     def compile_models(self):
@@ -159,6 +172,98 @@ class FrameWork(object):
         if self.config.debug:
             for model in self.models.__dict__.values():
                 print(model.summary())
+
+    def train(self,
+              dataset_obj :DataSet,
+              train_caseset_obj :CaseSet,
+              val_caseset_obj :Optional[CaseSet]=None):
+        
+        self.config.ensure_attr_group(['lr', 'epochs', 'batch'])
+        
+        if not isinstance(dataset_obj, DataSet):
+            raise TypeError(f'dataset_obj must be {DataSet} instance')
+        
+        if not isinstance(train_caseset_obj, CaseSet):
+            raise TypeError(f'train_caseset_obj must be {CaseSet} instance')
+        
+        if val_caseset_obj and not isinstance(val_caseset_obj, CaseSet):
+            raise TypeError(f'val_caseset_obj must be {CaseSet} instance')
+        
+        x = [train_caseset_obj.features]
+        y = [train_caseset_obj.labels]
+        x_val = [val_caseset_obj.features]
+        y_val = [val_caseset_obj.labels]
+        
+        if self.config._oevnltbnn:
+            history = self.models.oevnn.fit(
+                x=x,
+                y=y,
+                batch_size=self.config.batch,
+                epochs=self.config.epochs,
+                validation_data=(x_val, y_val) if val_caseset_obj else None,
+                verbose=self.config.verbose,
+                callbacks=self.config.keras_callbacks
+            )
+
+            ### extract evnn model from trained and store it for inference
+            ### scale back with labels_ev_scaler
+            ### subtract predictioins from anisotropy
+            ### create a_!!, a_12, a_22, a_33 tensor
+            ### use datasaset.labels.scaler.fit on train data again
+            ### and dataset.labels.scaler.transform on all
+            
+        x.append(train_caseset_obj.tensor_features)
+        if x_val:
+            x_val.append(val_caseset_obj.tensor_features)
+
+        if self.config._evtbnn:
+            x.append(train_caseset_obj.tensor_features_linear)
+            if x_val:
+                x_val.append(val_caseset_obj.tensor_features_linearor)  
+
+        for model_type, model in self.models._dict__.items():
+            if model_type == 'oevnn':
+                continue
+            
+            history = model.fit(
+                x=x,
+                y=y,
+                batch_size=self.config.batch,
+                epochs=self.config.epochs,
+                validation_data=(x_val, y_val) if val_caseset_obj else None,
+                verbose=self.config.verbose,
+                callbacks=self.config.keras_callbacks
+            )
+
+            ### test this later
+            # history_df = history.history
+            # history_lr = round(model.optimizer.lr.numpy(), 5)
+            setattr(self.model, model_type, model)
+            # setattr(self.history, history_df)
+
+            
+            # self.history
+
+        # else:
+        #     ...
+
+        return None
+
+
+    def predict_oev(self,
+                    dataset_obj :DataSet,
+                    caseset_obj :CaseSet):
+        
+        
+        return None
+    
+    def predict_anisotropy(self,
+                           dataset_obj :DataSet,
+                           caseset_obj :CaseSet):
+
+        return None
+
+        
 
 
 if __name__ == '__main__':
