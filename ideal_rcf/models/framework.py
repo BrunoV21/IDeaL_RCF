@@ -223,8 +223,8 @@ class FrameWork(object):
             
             ### scale back labels used in to train oevnn with inverse_transform 
             ### get nl labels from oevnn model output, still using invariant_features + tensor_basis_oev
-            train_caseset_obj = self.calculate_nl_labels(dataset_obj, train_caseset_obj, dump=False)
-            val_caseset_obj = self.calculate_nl_labels(dataset_obj, val_caseset_obj, dump=False) if val_caseset_obj else None
+            self.calculate_nl_labels(dataset_obj, train_caseset_obj, dump=False)
+            self.calculate_nl_labels(dataset_obj, val_caseset_obj, dump=False) if val_caseset_obj else None
 
             ### fit scaler
             train_caseset_obj.labels = dataset_obj.labels_scaler.fit_transform(train_caseset_obj.labels)
@@ -289,18 +289,6 @@ class FrameWork(object):
             print(self.models.oevnn.summary())
 
 
-    def predict_oev(self,
-                    caseset_obj :CaseSet,
-                    dump_predictions :Optional[bool]=True):
-        
-        caseset_obj.predictions_oev = self.models.oevnn.predict([caseset_obj.features])[:,0]
-        
-        if dump_predictions:
-            return caseset_obj.predictions_oev
-        else:
-            return None
-
-
     def calculate_nl_labels(self,
                             dataset_obj :DataSet,
                             caseset_obj :CaseSet,
@@ -328,7 +316,42 @@ class FrameWork(object):
 
         else:
             caseset_obj.labels = nl_term
-            return caseset_obj
+            # return caseset_obj
+
+    def predict_oev(self,
+                    caseset_obj :CaseSet,
+                    dump_predictions :Optional[bool]=True):
+        
+        caseset_obj.predictions_oev = self.models.oevnn.predict([caseset_obj.features])[:,0]
+        
+        if dump_predictions:
+            return caseset_obj.predictions_oev
+        else:
+            return None
+
+
+    def inference(self,
+                  dataset_obj : DataSet,
+                  caseset_obj :CaseSet,
+                  dump_predictions :Optional[bool]=True):
+        
+        x = [caseset_obj.features, caseset_obj.tensor_features]
+        if self.config._evtbnn:
+            x.append(caseset_obj.tensor_features_linear)
+        
+        for model_type, model in self.models.__dict__.items():
+            if model_type == 'oevnn':
+                self.predict_oev(caseset_obj, dump_predictions=False)
+                continue
+
+            caseset_obj.predictions = dataset_obj.labels_scaler.inverse_transform(
+                model.predict([x])
+            )
+
+            if dump_predictions:
+                return caseset_obj.predictions_oev, caseset_obj.predictions if self.config._oevnltbnn else caseset_obj.predictions
+            else:
+                return None
 
 
 if __name__ == '__main__':
