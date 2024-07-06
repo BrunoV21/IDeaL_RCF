@@ -1,12 +1,12 @@
 from types import SimpleNamespace
 
 try:
-    from models.config import ModelConfig, MixerConfig
-    from models.tbnn import TBNN
-    from models.evnn import eVNN
-    from models.oevnn import OeVNN
-    from dataloader.dataset import DataSet
-    from dataloader.caseset import CaseSet
+    from ideal_rcf.models.config import ModelConfig, MixerConfig
+    from ideal_rcf.models.tbnn import TBNN
+    from ideal_rcf.models.evnn import eVNN
+    from ideal_rcf.models.oevnn import OeVNN
+    from ideal_rcf.dataloader.dataset import DataSet
+    from ideal_rcf.dataloader.caseset import CaseSet
 
 except ModuleNotFoundError:
     from config import ModelConfig, MixerConfig
@@ -25,6 +25,7 @@ from tensorflow.keras import Model
 from typing import Optional
 import tensorflow as tf
 import polars as pl
+import numpy as np
 
 class FrameWork(object):
     def __init__(self,
@@ -42,10 +43,8 @@ class FrameWork(object):
         self.build()
 
 
-    def build(self,):
+    def build(self):
 
-        model = {}
-        ### need input layers here and pass them to build methods
         input_features_layer = Input(
             shape=(self.config.features_input_shape) if type(self.config.features_input_shape)==int else self.config.features_input_shape,
             name='features_input_layer'
@@ -65,7 +64,6 @@ class FrameWork(object):
         tbnn_output_0 = Lambda(lambda x: x[:,0])(tbnn_output)
         tbnn_output_1 = Lambda(lambda x: x[:,1])(tbnn_output)
         tbnn_output_4 = Lambda(lambda x: x[:,4])(tbnn_output)
-
 
         if self.config._evtbnn: 
             input_tensor_features_linear_layer = Input(
@@ -95,7 +93,7 @@ class FrameWork(object):
                 evtbnn_output_4,
                 tf.math.negative(evtbnn_output_6)
             ])
-
+            
             evtbnn = Model(
                 inputs=[
                     input_features_layer,
@@ -176,9 +174,9 @@ class FrameWork(object):
     def train(self,
               dataset_obj :DataSet,
               train_caseset_obj :CaseSet,
-              val_caseset_obj :Optional[CaseSet]=None):
+              val_caseset_obj :CaseSet=None):
         
-        self.config.ensure_attr_group(['lr', 'epochs', 'batch'])
+        self.config.ensure_attr_group(['learning_rate', 'epochs', 'batch'])
         
         if not isinstance(dataset_obj, DataSet):
             raise TypeError(f'dataset_obj must be {DataSet} instance')
@@ -189,12 +187,28 @@ class FrameWork(object):
         if val_caseset_obj and not isinstance(val_caseset_obj, CaseSet):
             raise TypeError(f'val_caseset_obj must be {CaseSet} instance')
         
+        if self.config.shuffle:
+            train_caseset_obj.shuffle()
+            if val_caseset_obj:
+                val_caseset_obj.shuffle()
+
         x = [train_caseset_obj.features]
         y = [train_caseset_obj.labels]
-        x_val = [val_caseset_obj.features]
-        y_val = [val_caseset_obj.labels]
+
+        if val_caseset_obj:
+            x_val = [val_caseset_obj.features]
+            y_val = [val_caseset_obj.labels]
+
+        else:
+            x_val = []
+            y_val = []
         
         if self.config._oevnltbnn:
+            x.append(train_caseset_obj.tensor_features_oev)
+            if x_val:
+                x_val.append(val_caseset_obj.tensor_features_oev)
+
+            print('> starting oevnn traninng ...')
             history = self.models.oevnn.fit(
                 x=x,
                 y=y,
@@ -205,13 +219,30 @@ class FrameWork(object):
                 callbacks=self.config.keras_callbacks
             )
 
-            ### extract evnn model from trained and store it for inference
-            ### scale back with labels_ev_scaler
-            ### subtract predictioins from anisotropy
-            ### create a_!!, a_12, a_22, a_33 tensor
-            ### use datasaset.labels.scaler.fit on train data again
-            ### and dataset.labels.scaler.transform on all
+            self.history.oevnn = pl.from_dicts(history.history)
             
+            ### scale back labels used in to train oevnn with inverse_transform 
+            ### get nl labels from oevnn model output, still using invariant_features + tensor_basis_oev
+            train_caseset_obj = self.calculate_nl_labels(dataset_obj, train_caseset_obj, dump=False)
+            val_caseset_obj = self.calculate_nl_labels(dataset_obj, val_caseset_obj, dump=False) if val_caseset_obj else None
+
+            ### fit scaler
+            train_caseset_obj.labels = dataset_obj.labels_scaler.fit_transform(train_caseset_obj.labels)
+            if val_caseset_obj:
+                val_caseset_obj.labels = dataset_obj.labels_scaler.transform(val_caseset_obj.labels)
+            
+            ### extract evnn model from trained and store it for inference in self.models.oevnn
+            self.extract_oev()
+            ### store oev predictions in each caseset althought they are shuffled
+            ### so couldget away with doing it only later
+            # self.predict_oev(train_caseset_obj, dump_predictions=False)
+            # self.predict_oev(val_caseset_obj, dump_predictions=False) if val_caseset_obj else ...
+            x = x[:-1]            
+            y = [train_caseset_obj.labels]
+            if x_val:
+                x_val = x_val[:-1]                
+                y_val = [val_caseset_obj.labels]
+
         x.append(train_caseset_obj.tensor_features)
         if x_val:
             x_val.append(val_caseset_obj.tensor_features)
@@ -219,12 +250,13 @@ class FrameWork(object):
         if self.config._evtbnn:
             x.append(train_caseset_obj.tensor_features_linear)
             if x_val:
-                x_val.append(val_caseset_obj.tensor_features_linearor)  
+                x_val.append(val_caseset_obj.tensor_features_linear)  
 
-        for model_type, model in self.models._dict__.items():
+        for model_type, model in self.models.__dict__.items():
             if model_type == 'oevnn':
                 continue
-            
+
+            print(f'> starting {model_type} traninng ...')
             history = model.fit(
                 x=x,
                 y=y,
@@ -235,35 +267,68 @@ class FrameWork(object):
                 callbacks=self.config.keras_callbacks
             )
 
-            ### test this later
-            # history_df = history.history
-            # history_lr = round(model.optimizer.lr.numpy(), 5)
-            setattr(self.model, model_type, model)
-            # setattr(self.history, history_df)
-
+            setattr(self.models, model_type, model)
+            setattr(self.history, model_type, pl.from_dicts(history.history))
             
-            # self.history
+        return tuple(obj for obj in [dataset_obj, train_caseset_obj, val_caseset_obj] if obj)
+    
 
-        # else:
-        #     ...
+    def extract_oev(self):
+        try:
+            oev_model = self.models.oevnn.get_layer(name='oevnn')
+        except ValueError:
+            oev_model = self.models.oevnn.get_layer(name='mixer_oevnn')
+        
+        self.models.oevnn = Model(
+            oev_model.layers[0].input, 
+            oev_model.layers[-5].output
+        )
+        self.models.oevnn._name='oevnn'
 
-        return None
+        if self.config.debug:
+            print(self.models.oevnn.summary())
 
 
     def predict_oev(self,
-                    dataset_obj :DataSet,
-                    caseset_obj :CaseSet):
+                    caseset_obj :CaseSet,
+                    dump_predictions :Optional[bool]=True):
         
+        caseset_obj.predictions_oev = self.models.oevnn.predict([caseset_obj.features])[:,0]
         
-        return None
-    
-    def predict_anisotropy(self,
-                           dataset_obj :DataSet,
-                           caseset_obj :CaseSet):
+        if dump_predictions:
+            return caseset_obj.predictions_oev
+        else:
+            return None
 
-        return None
 
+    def calculate_nl_labels(self,
+                            dataset_obj :DataSet,
+                            caseset_obj :CaseSet,
+                            dump :Optional[bool]=True):
         
+        linear_term = dataset_obj.labels_oev_scaler.inverse_transform(
+            self.models.oevnn([caseset_obj.features, caseset_obj.tensor_features_oev])[:,:,0]
+        )
+
+        full_term = dataset_obj.labels_oev_scaler.inverse_transform(caseset_obj.labels)
+
+        nl_term = full_term - linear_term
+
+        nl_term = np.transpose(
+            [
+                nl_term[:,0],
+                nl_term[:,1],
+                nl_term[:,2],
+                -nl_term[:,0]-nl_term[:,2] ### 2D traceless condition
+            ]
+        )
+
+        if dump:
+            return nl_term
+
+        else:
+            caseset_obj.labels = nl_term
+            return caseset_obj
 
 
 if __name__ == '__main__':
@@ -353,7 +418,7 @@ if __name__ == '__main__':
     print('Sucess creating mixer OeVNLTBNN_config ModelConfig obj')
     oevnltbnn = FrameWork(OeVNLTBNN_config)
     oevnltbnn.compile_models()
-
+    oevnltbnn.extract_oev()
 
     ### put in place checl in config where if mixer config shape of features input shape >= 1, else int
     ### include train method
