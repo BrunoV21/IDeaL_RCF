@@ -1,5 +1,5 @@
 try:
-    from dataloader.config import SetConfig
+    from ideal_rcf.dataloader.config import SetConfig
 
 except ModuleNotFoundError:
     from config import SetConfig
@@ -211,10 +211,12 @@ class CaseSet(object):
         
         features_scaler.fit(self.features) if features_scaler else ...
         try: 
-            bool(self.tensor_features_oev);
-            labels_oev_scaler.fit(self.labels) if labels_oev_scaler  else ...
-        except ValueError:
+            bool(self.tensor_features_oev);             
             labels_scaler.fit(self.labels) if labels_scaler else ...
+
+        except ValueError:
+            labels_oev_scaler.fit(self.labels) if labels_oev_scaler  else ...
+           
         
         if self.config.debug:
             applied_scalers = [
@@ -243,12 +245,13 @@ class CaseSet(object):
                 print(f'[{self.set_id or self.case[0]}] [mixer_info] features_scaler was not applied as mixer_invariant_features_scaler was already applied')
 
         try:
-            bool(self.tensor_features_oev)
+            bool(self.tensor_features_oev);
+            self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels 
+            
+        except ValueError:
             self.labels = labels_oev_scaler.transform(self.labels) if labels_oev_scaler else self.labels
             self.tensor_features_oev = labels_oev_scaler.transform(self.tensor_features_linear) if labels_oev_scaler else self.tensor_features_linear
 
-        except ValueError:
-            self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels 
 
         if self.config.debug:
             applied_scalers = [

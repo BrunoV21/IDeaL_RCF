@@ -1,5 +1,5 @@
 try:
-    from models.config import MixerConfig
+    from ideal_rcf.models.config import MixerConfig
 
 except ModuleNotFoundError:
     from config import MixerConfig

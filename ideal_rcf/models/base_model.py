@@ -1,5 +1,5 @@
 try:
-    from models.config import ModelConfig
+    from ideal_rcf.models.config import ModelConfig
 
 except ModuleNotFoundError:
     from config import ModelConfig

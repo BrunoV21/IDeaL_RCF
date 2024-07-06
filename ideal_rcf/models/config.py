@@ -103,6 +103,7 @@ class ModelConfig(BaseConfig):
                  model_id :Optional[str]=None,
                  random_seed :Optional[int]=42,
                  verbose :Optional[int]=1,
+                 shuffle :Optional[bool]=True,
                  debug :Optional[bool]=False,
                  ) -> None:
 
@@ -164,7 +165,8 @@ class ModelConfig(BaseConfig):
         except TypeError:
              if self.tbnn_mixer_config:
                 raise ValueError(f'when mixer config is passed features_input_shape should have len >= 1, but got {self.features_input_shape}') 
-
+        
+        self.shuffle = shuffle
         self.debug = debug
 
 

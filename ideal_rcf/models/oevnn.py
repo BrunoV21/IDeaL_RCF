@@ -1,7 +1,7 @@
 try:
-    from models.base_model import BaseModel
-    from models.config import ModelConfig
-    from models.mixer import MixerResBlock
+    from ideal_rcf.models.base_model import BaseModel
+    from ideal_rcf.models.config import ModelConfig
+    from ideal_rcf.models.mixer import MixerResBlock
 
 except ModuleNotFoundError:
     from base_model import BaseModel

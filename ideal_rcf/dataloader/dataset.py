@@ -1,6 +1,6 @@
 try:
-    from dataloader.config import SetConfig
-    from dataloader.caseset import CaseSet
+    from ideal_rcf.dataloader.config import SetConfig
+    from ideal_rcf.dataloader.caseset import CaseSet
 
 except ModuleNotFoundError:
     from config import SetConfig
@@ -16,7 +16,7 @@ class DataSet(object):
                  set_config :SetConfig=None) -> None:
         
         if not isinstance(set_config, SetConfig):
-            raise AssertionError(f'set_config must of instance {SetConfig()}')
+            raise AssertionError(f'set_config must of instance {SetConfig}')
         
         self.config = set_config
         
