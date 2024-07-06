@@ -24,7 +24,7 @@ class DataSet(object):
 
         self.features_scaler = self.config.features_scaler
         self.labels_scaler = self.config.labels_scaler
-        self.labels_eV_scaler = self.config.labels_eV_scaler
+        self.labels_oev_scaler = self.config.labels_oev_scaler
         self.mixer_invariant_features_scaler = self.config.mixer_invariant_features_scaler
         
         self.contents = [
@@ -45,7 +45,7 @@ class DataSet(object):
     
     def shuffle(self):
         ...
-        return 'Should be implemted at CaseSet level'
+        return 'Implemented at CaseSet level'
 
 
     def stack_case_sets(self,
@@ -85,7 +85,7 @@ class DataSet(object):
         
         if train_set:
             ### build scalers
-            self.features_scaler, self.labels_scaler, self.labels_eV_scaler = train_set._fit_scaler(self.features_scaler , self.labels_scaler, self.labels_eV_scaler)
+            self.features_scaler, self.labels_scaler, self.labels_oev_scaler = train_set._fit_scaler(self.features_scaler , self.labels_scaler, self.labels_oev_scaler)
             
             ### build mixer features if enablred
             if self.config.enable_mixer:
@@ -99,9 +99,9 @@ class DataSet(object):
                 test_set._build_mixer_features(self.mixer_invariant_features_scaler) if self.config.testset else ...
             
             ### scale set
-            train_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler)
-            val_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler) if self.config.valset else ...
-            test_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_eV_scaler) if self.config.testset else ...
+            train_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler)
+            val_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler) if self.config.valset else ...
+            test_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler) if self.config.testset else ...
 
         tain_val_test = tuple(_set for _set in [train_set, val_set, test_set] if _set)
 
@@ -150,8 +150,8 @@ if __name__ == '__main__':
     tensor_features_linear = ['Shat']
     labels = ['a_NL']
 
-    tensor_features_eV = ['S_DNS']
-    labels_eV = ['a']
+    tensor_features_oev = ['S_DNS']
+    labels_oev = ['a']
 
 
     standard_case_test_configuration = SetConfig(
@@ -181,8 +181,8 @@ if __name__ == '__main__':
         tensor_features_linear=tensor_features_linear,
         labels=labels,
         custom_turb_dataset=custom_turb_dataset,
-        tensor_features_eV=tensor_features_eV,
-        # labels_eV=labels_eV,
+        tensor_features_oev=tensor_features_oev,
+        # labels_oev=labels_oev,
         features_filter=features_filter,
         features_cardinality=features_cardinality,
         debug=True,
@@ -205,8 +205,8 @@ if __name__ == '__main__':
         tensor_features_linear=tensor_features_linear,
         labels=labels,
         custom_turb_dataset=custom_turb_dataset,
-        tensor_features_eV=tensor_features_eV,
-        # labels_eV=labels_eV,
+        tensor_features_oev=tensor_features_oev,
+        # labels_oev=labels_oev,
         features_filter=features_filter,
         features_cardinality=features_cardinality,
         enable_mixer=True,
@@ -233,8 +233,8 @@ if __name__ == '__main__':
         tensor_features_linear=tensor_features_linear,
         labels=labels,
         custom_turb_dataset=custom_turb_dataset,
-        tensor_features_eV=tensor_features_eV,
-        # labels_eV=labels_eV,
+        tensor_features_oev=tensor_features_oev,
+        # labels_oev=labels_oev,
         features_filter=features_filter,
         features_cardinality=features_cardinality,
         enable_mixer=True,

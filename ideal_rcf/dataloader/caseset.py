@@ -31,15 +31,17 @@ class CaseSet(object):
         self.tensor_features_linear = self.loadCombinedArray(self.config.tensor_features_linear)
         self.labels = self.loadLabels(self.config.labels)
 
-        self.tensor_features_eV = self.loadCombinedArray(self.config.tensor_features_eV)
-        # self.labels_eV = self.loadLabels(self.config.labels_eV)
-        self._ensure_eV_shapes()
+        self.tensor_features_oev = self.loadCombinedArray(self.config.tensor_features_oev)
+        self._ensure_oev_shapes()
 
         self.Cx = self.loadCombinedArray(self.config.Cx)
         self.Cy = self.loadCombinedArray(self.config.Cy)
 
         self.u = self.loadLabels(self.config.u)
         self.v = self.loadLabels(self.config.v)
+
+        self.predictions = None
+        self.predictions_oev = None
             
         if self.config.features_filter and self.config.features_filter != self.config.all_features:
             self._filter_features()
@@ -125,8 +127,7 @@ class CaseSet(object):
                 self.tensor_features,
                 self.tensor_features_linear,
                 self.labels,
-                self.tensor_features_eV,
-                self.labels_eV,
+                self.tensor_features_oev,
                 self.Cx,
                 self.Cy,
                 self.u,
@@ -137,8 +138,7 @@ class CaseSet(object):
                 self.tensor_features,
                 self.tensor_features_linear,
                 self.labels,
-                self.tensor_features_eV,
-                self.labels_eV,
+                self.tensor_features_oev,
                 self.Cx,
                 self.Cy,
                 self.u,
@@ -184,9 +184,8 @@ class CaseSet(object):
         self.tensor_features_linear = np.delete(self.tensor_features_linear, outliers_index, axis=0) if self.config.tensor_features_linear else None
         self.labels = np.delete(self.labels, outliers_index, axis=0)
         
-        self.tensor_features_eV = np.delete(self.tensor_features_eV, outliers_index, axis=0) if self.config.tensor_features_eV else None
-        #self.labels_eV = np.delete(self.labels_eV, outliers_index, axis=0) if self.config.labels_eV else None
-
+        self.tensor_features_oev = np.delete(self.tensor_features_oev, outliers_index, axis=0) if self.config.tensor_features_oev else None
+        
         self.Cx = np.delete(self.Cx, outliers_index, axis=0)
         self.Cy = np.delete(self.Cy, outliers_index, axis=0)
 
@@ -208,29 +207,29 @@ class CaseSet(object):
     def _fit_scaler(self,
                     features_scaler :Union[StandardScaler, MinMaxScaler, None],
                     labels_scaler :Union[StandardScaler, MinMaxScaler, None],
-                    labels_eV_scaler :Union[StandardScaler, MinMaxScaler, None]):
+                    labels_oev_scaler :Union[StandardScaler, MinMaxScaler, None]):
         
         features_scaler.fit(self.features) if features_scaler else ...
         try: 
-            bool(self.tensor_features_eV);
-            labels_eV_scaler.fit(self.labels) if labels_eV_scaler  else ...
+            bool(self.tensor_features_oev);
+            labels_oev_scaler.fit(self.labels) if labels_oev_scaler  else ...
         except ValueError:
             labels_scaler.fit(self.labels) if labels_scaler else ...
         
         if self.config.debug:
             applied_scalers = [
-                scaler for scaler in [features_scaler, labels_scaler, labels_eV_scaler] 
+                scaler for scaler in [features_scaler, labels_scaler, labels_oev_scaler] 
                 if scaler
             ]
             print(f'[{self.set_id or self.case[0]}] fitted scalers {applied_scalers}')
 
-        return features_scaler, labels_scaler, labels_eV_scaler
+        return features_scaler, labels_scaler, labels_oev_scaler
 
 
     def _transform_scale(self,
                features_scaler :Union[StandardScaler, MinMaxScaler, None],
                labels_scaler :Union[StandardScaler, MinMaxScaler, None],
-               labels_eV_scaler :Union[StandardScaler, MinMaxScaler, None]):
+               labels_oev_scaler :Union[StandardScaler, MinMaxScaler, None]):
         
         if self.config.features_transforms:
             self._transform_features()
@@ -244,16 +243,16 @@ class CaseSet(object):
                 print(f'[{self.set_id or self.case[0]}] [mixer_info] features_scaler was not applied as mixer_invariant_features_scaler was already applied')
 
         try:
-            bool(self.tensor_features_eV)
-            self.labels = labels_eV_scaler.transform(self.labels) if labels_eV_scaler else self.labels
+            bool(self.tensor_features_oev)
+            self.labels = labels_oev_scaler.transform(self.labels) if labels_oev_scaler else self.labels
+            self.tensor_features_oev = labels_oev_scaler.transform(self.tensor_features_linear) if labels_oev_scaler else self.tensor_features_linear
+
         except ValueError:
             self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels 
 
-        self.tensor_features_linear = labels_eV_scaler.transform(self.tensor_features_linear) if labels_eV_scaler else self.tensor_features_linear
-
         if self.config.debug:
             applied_scalers = [
-                scaler for scaler in [features_scaler, labels_scaler, labels_eV_scaler] 
+                scaler for scaler in [features_scaler, labels_scaler, labels_oev_scaler] 
                 if scaler
             ]
             print(f'[{self.set_id or self.case[0]}] applied scalers {applied_scalers}')
@@ -302,20 +301,20 @@ class CaseSet(object):
             print(f'[{self.set_id or self.case[0]}] [mixer_info] building mixer features augmentend with spatial mixing with new shape: {self.features.shape}')
 
 
-    def _ensure_eV_shapes(self):
-        if bool(self.config.labels) and bool(self.config.tensor_features_eV):
-            if self.config.tensor_features_eV:
-                tensor_shape = self.tensor_features_eV.shape[1]
+    def _ensure_oev_shapes(self):
+        if bool(self.config.labels) and bool(self.config.tensor_features_oev):
+            if self.config.tensor_features_oev:
+                tensor_shape = self.tensor_features_oev.shape[1]
                 if self.labels.shape[1] > tensor_shape:
                     if self.config.debug:
                         print('')
                     self.labels = self.labels[:,:tensor_shape]
 
-                elif self.labels_eV.shape[1] < tensor_shape:
-                    raise ValueError(f'[{self.set_id or self.case[0]}] Config_Error: labels ({self.config.labels}) and tensor_features_eV ({self.config.tensor_features_eV} must have same dim 1 but have ({self.labels.shape[1] }) and ({tensor_shape})')
+                elif self.labels_oev.shape[1] < tensor_shape:
+                    raise ValueError(f'[{self.set_id or self.case[0]}] Config_Error: labels ({self.config.labels}) and tensor_features_oev ({self.config.tensor_features_oev} must have same dim 1 but have ({self.labels.shape[1] }) and ({tensor_shape})')
 
         # else:
-        #     raise AssertionError(f'[{self.set_id or self.case[0]}] Config_Error: labels ({self.config.labels}) and tensor_features_eV ({self.config.tensor_features_eV} must be passed simultaneously)')
+        #     raise AssertionError(f'[{self.set_id or self.case[0]}] Config_Error: labels ({self.config.labels}) and tensor_features_oev ({self.config.tensor_features_oev} must be passed simultaneously)')
 
 
     def _export_for_stack(self):
@@ -325,8 +324,8 @@ class CaseSet(object):
             self.tensor_features,
             self.tensor_features_linear,
             self.labels,
-            self.tensor_features_eV,
-            # self.labels_eV,
+            self.tensor_features_oev,
+            # self.labels_oev,
             self.Cx,
             self.Cy,
             self.u,
@@ -347,8 +346,7 @@ class CaseSet(object):
                 'tensor_features',
                 'tensor_features_linear',
                 'labels',
-                'tensor_features_eV',
-                # 'labels_eV',
+                'tensor_features_oev',
                 'Cx',
                 'Cy',
                 'u',
@@ -371,8 +369,7 @@ class CaseSet(object):
             'tensor_features',
             'tensor_features_linear',
             'labels',
-            'tensor_features_eV',
-            # 'labels_eV',
+            'tensor_features_oev',
             'Cx',
             'Cy',
             'u_velocity_label',
@@ -416,8 +413,8 @@ if __name__ == '__main__':
     tensor_features_linear = ['Shat']
     labels = ['a_NL']
 
-    tensor_features_eV = ['S_DNS']
-    labels_eV = ['a']
+    tensor_features_oev = ['S_DNS']
+    labels_oev = ['a']
 
     features_z_score_outliers_threshold = 10
 
@@ -448,8 +445,8 @@ if __name__ == '__main__':
         tensor_features_linear=tensor_features_linear,
         labels=labels,
         custom_turb_dataset=custom_turb_dataset,
-        # tensor_features_eV=tensor_features_eV,
-        # labels_eV=labels_eV,
+        # tensor_features_oev=tensor_features_oev,
+        # labels_oev=labels_oev,
         features_filter=features_filter,
         features_cardinality=features_cardinality
     )
@@ -467,8 +464,8 @@ if __name__ == '__main__':
         # tensor_features_linear=tensor_features_linear,
         labels=labels,
         custom_turb_dataset=custom_turb_dataset,
-        tensor_features_eV=tensor_features_eV,
-        # labels_eV=labels_eV,
+        tensor_features_oev=tensor_features_oev,
+        # labels_oev=labels_oev,
         features_filter=features_filter,
         features_cardinality=features_cardinality,
         features_transforms=features_transforms,
