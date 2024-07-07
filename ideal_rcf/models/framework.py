@@ -4,7 +4,8 @@ try:
     from ideal_rcf.models.config import ModelConfig, MixerConfig
     from ideal_rcf.models.tbnn import TBNN
     from ideal_rcf.models.evnn import eVNN
-    from ideal_rcf.models.oevnn import OeVNN
+    from ideal_rcf.models.oevnn import OeVNN    
+    from ideal_rcf.models.utils import MakeRealizable
     from ideal_rcf.dataloader.dataset import DataSet
     from ideal_rcf.dataloader.caseset import CaseSet
 
@@ -338,6 +339,7 @@ class FrameWork(object):
     def inference(self,
                   dataset_obj : DataSet,
                   caseset_obj :CaseSet,
+                  force_realizability :Optional[bool]=True,
                   dump_predictions :Optional[bool]=True):
         
         x = [caseset_obj.features, caseset_obj.tensor_features]
@@ -352,6 +354,9 @@ class FrameWork(object):
             caseset_obj.predictions = dataset_obj.labels_scaler.inverse_transform(
                 model.predict([x])
             )
+
+            if force_realizability:
+                caseset_obj.predictions = MakeRealizable(debug=self.config.debug).force_realizability(caseset_obj.predictions)
 
             if dump_predictions:
                 return caseset_obj.predictions_oev, caseset_obj.predictions if self.config._oevnltbnn else caseset_obj.predictions
@@ -394,6 +399,8 @@ class FrameWork(object):
                 ax.set_ylim(0, 2*np.mean(metrics[pair_plot[1]].to_list()))
         
         fig.show()
+
+
 
 
     def train_metrics(self):
