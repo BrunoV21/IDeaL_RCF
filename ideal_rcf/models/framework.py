@@ -22,6 +22,7 @@ except ModuleNotFoundError:
 
 from tensorflow.keras.layers import Input, Lambda, Add, Concatenate
 from tensorflow.keras import Model
+import matplotlib.pyplot as plt
 from typing import Optional
 import tensorflow as tf
 import polars as pl
@@ -155,8 +156,6 @@ class FrameWork(object):
             self.models.nltbnn._name = 'nltbnn_framework'
             del self.models.evtbnn
 
-    ### in CaseSet/DataSet need to add support to transform and inverse transform features from eV
-    
 
     def compile_models(self):
         for model_type, model in self.models.__dict__.items():
@@ -219,7 +218,10 @@ class FrameWork(object):
                 callbacks=self.config.keras_callbacks
             )
 
-            self.history.oevnn = pl.from_dicts(history.history)
+            history_learning_rate = {'learning_rate': round(self.models.oevnn.optimizer.lr.numpy(), 5)}
+            history_dict = history.history
+            history_dict.update(history_learning_rate)
+            self.history.oevnn = pl.from_dicts(history_dict)
             
             ### scale back labels used in to train oevnn with inverse_transform 
             ### get nl labels from oevnn model output, still using invariant_features + tensor_basis_oev
@@ -266,9 +268,12 @@ class FrameWork(object):
                 verbose=self.config.verbose,
                 callbacks=self.config.keras_callbacks
             )
+            history_learning_rate = {'learning_rate': round(model.optimizer.lr.numpy(), 5)}
+            history_dict = history.history
+            history_dict.update(history_learning_rate)
 
             setattr(self.models, model_type, model)
-            setattr(self.history, model_type, pl.from_dicts(history.history))
+            setattr(self.history, model_type, pl.from_dicts(history_dict))
             
         return tuple(obj for obj in [dataset_obj, train_caseset_obj, val_caseset_obj] if obj)
     
@@ -352,6 +357,48 @@ class FrameWork(object):
                 return caseset_obj.predictions_oev, caseset_obj.predictions if self.config._oevnltbnn else caseset_obj.predictions
             else:
                 return None
+
+
+    def plot_metrics(self,
+                     model_type :str,
+                     metrics :pl.DataFrame):
+    
+        epochs = [i for i in range(metrics.shape[0])]
+        metrics_types = metrics.columns
+
+        metric_pairs = {}
+
+        for i,_metric in enumerate(metrics_types):
+            if _metric in list(metric_pairs.values()):
+                continue
+            for __metric in metrics_types[i+1:]:
+                if _metric in __metric.split('_'):
+                    metric_pairs[_metric]=__metric
+        
+        metric_pairs['learning_rate'] = 'loss'
+        metric_pairs = [[key, value] for key,value in metric_pairs.items()]
+
+        fig, axs = plt.subplots(1, len(metric_pairs), figsize=(len(metric_pairs)*10, 10))
+
+        fig.suptitle(f'{model_type} training metrics', fontsize=40, y=1.0)
+        for ax, pair_plot in zip(axs, metric_pairs):
+
+            ax.plot(epochs, [metrics[pair_plot[0]].to_list(), metrics[pair_plot[1]].to_list()])
+            ax.set_xlabel('Number of epochs', fontsize=40)
+            ax.set_ylabel(' and '.join(pair_plot), fontsize=40)
+            ax.legend(labels=pair_plot, fontsize=30)
+            ax.set_xlim(0, len(epochs))
+            if 'learning_rate' in pair_plot:
+                ax.set_yscale('log')
+            else :     
+                ax.set_ylim(0, 2*np.mean(metrics[pair_plot[1]].to_list()))
+        
+        fig.show()
+
+
+    def train_metrics(self):
+        for model_type, history_metrics in self.history.__dict__.items():
+            self.plot_metrics(model_type, history_metrics)
 
 
 if __name__ == '__main__':
