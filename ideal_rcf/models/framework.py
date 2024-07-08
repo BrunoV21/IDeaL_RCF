@@ -275,6 +275,10 @@ class FrameWork(object):
 
             setattr(self.models, model_type, model)
             setattr(self.history, model_type, pl.from_dicts(history_dict))
+        
+        train_caseset_obj.labels = dataset_obj.labels_scaler.inverse_transform(train_caseset_obj.labels)
+        if y_val:
+            val_caseset_obj.labels = dataset_obj.labels_scaler.inverse_transform(val_caseset_obj.labels)
             
         return tuple(obj for obj in [dataset_obj, train_caseset_obj, val_caseset_obj] if obj)
     

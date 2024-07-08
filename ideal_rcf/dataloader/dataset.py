@@ -101,7 +101,7 @@ class DataSet(object):
             ### scale set
             train_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler)
             val_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler) if self.config.valset else ...
-            test_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler) if self.config.testset else ...
+            test_set._transform_scale(self.features_scaler, None, None) if self.config.testset else ...
 
         tain_val_test = tuple(_set for _set in [train_set, val_set, test_set] if _set)
 
@@ -110,6 +110,18 @@ class DataSet(object):
                 _set.check_set()
 
         return tain_val_test
+
+
+    def prepare_for_inference(self, 
+                              caseset_obj :CaseSet):
+        
+        if self.config.enable_mixer:
+            caseset_obj._scale_mixer(self.mixer_invariant_features_scaler)
+            caseset_obj._build_mixer_features(self.mixer_invariant_features_scaler)
+        
+        caseset_obj._transform_scale(self.features_scaler,None,None)
+
+        return caseset_obj
 
 
 if __name__ == '__main__':
