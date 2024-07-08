@@ -14,7 +14,8 @@ class CaseSet(object):
     def __init__(self,
                  case :str,
                  set_config :SetConfig,
-                 set_id :Optional[str]=None) -> None:
+                 set_id :Optional[str]=None,
+                 initialize_empty :Optional[bool]=False) -> None:
         
         if not isinstance(set_config, SetConfig):
             raise AssertionError(f'[config_error] set_config must be of instance {SetConfig()}')
@@ -42,24 +43,25 @@ class CaseSet(object):
 
         self.predictions = None
         self.predictions_oev = None
+
+        if not initialize_empty:            
+            if self.config.features_filter and self.config.features_filter != self.config.all_features:
+                self._filter_features()
+
+            if self.config.remove_outliers_threshold:
+                self._remove_outliers()
+
+            if self.config.enable_mixer:
+                try:
+                    self.augmented_spatial_mixing_coords = np.hstack(self.config.mixer_propertires_obj[self.case[0][:4]](self.Cx, self.Cy, self.case[0]))
+
+                except KeyError:
+                    raise KeyError(f'[config_error] available mixer_properties_obj are {self.config.mixer_propertires_obj}. You can pass a new obj with arg pass_mixer_propertires_obj')
+            else:
+                self.augmented_spatial_mixing_coords = None
             
-        if self.config.features_filter and self.config.features_filter != self.config.all_features:
-            self._filter_features()
-
-        if self.config.remove_outliers_threshold:
-            self._remove_outliers()
-
-        if self.config.enable_mixer:
-            try:
-                self.augmented_spatial_mixing_coords = np.hstack(self.config.mixer_propertires_obj[self.case[0][:4]](self.Cx, self.Cy, self.case[0]))
-
-            except KeyError:
-                raise KeyError(f'[config_error] available mixer_properties_obj are {self.config.mixer_propertires_obj}. You can pass a new obj with arg pass_mixer_propertires_obj')
-        else:
-            self.augmented_spatial_mixing_coords = None
-        
-        if self.config.debug:
-            self.check_set()
+            if self.config.debug:
+                self.check_set()
 
 
     def loadLabels(self, 
@@ -335,6 +337,27 @@ class CaseSet(object):
             self.v,
             self.augmented_spatial_mixing_coords
         )
+
+
+    def _import_from_copy(self,
+                          *args):
+    
+        for arg, arg_value in zip(
+            [
+                'features',
+                'tensor_features',
+                'tensor_features_linear',
+                'labels',
+                'tensor_features_oev',
+                'Cx',
+                'Cy',
+                'u',
+                'v',
+                'augmented_spatial_mixing_coords',
+            ],
+            args[1:]
+        ):
+            setattr(self, arg, arg_value)
 
 
     def _stack(self, *args):

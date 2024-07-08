@@ -171,6 +171,7 @@ class FrameWork(object):
             for model in self.models.__dict__.values():
                 print(model.summary())
 
+
     def train(self,
               dataset_obj :DataSet,
               train_caseset_obj :CaseSet,
@@ -187,9 +188,19 @@ class FrameWork(object):
         if val_caseset_obj and not isinstance(val_caseset_obj, CaseSet):
             raise TypeError(f'val_caseset_obj must be {CaseSet} instance')
         
+        copy_val_caseset_obj = None
+        
         if self.config.shuffle:
             train_caseset_obj.shuffle()
             if val_caseset_obj:
+                copy_val_caseset_obj = CaseSet(
+                    case=val_caseset_obj.case,
+                    set_config=val_caseset_obj.config, 
+                    set_id=val_caseset_obj.set_id,
+                    initialize_empty=True
+                )                
+                copy_val_caseset_obj._import_from_copy(*val_caseset_obj._export_for_stack())
+                
                 val_caseset_obj.shuffle()
 
         x = [train_caseset_obj.features]
@@ -228,6 +239,7 @@ class FrameWork(object):
             ### get nl labels from oevnn model output, still using invariant_features + tensor_basis_oev
             self.calculate_nl_labels(dataset_obj, train_caseset_obj, dump=False)
             self.calculate_nl_labels(dataset_obj, val_caseset_obj, dump=False) if val_caseset_obj else None
+            self.calculate_nl_labels(dataset_obj, copy_val_caseset_obj, dump=False) if copy_val_caseset_obj else None
 
             ### fit scaler
             train_caseset_obj.labels = dataset_obj.labels_scaler.fit_transform(train_caseset_obj.labels)
@@ -278,7 +290,10 @@ class FrameWork(object):
         
         train_caseset_obj.labels = dataset_obj.labels_scaler.inverse_transform(train_caseset_obj.labels)
         if y_val:
-            val_caseset_obj.labels = dataset_obj.labels_scaler.inverse_transform(val_caseset_obj.labels)
+            if copy_val_caseset_obj:
+                val_caseset_obj._import_from_copy(*copy_val_caseset_obj._export_for_stack())
+            else:
+                val_caseset_obj.labels = dataset_obj.labels_scaler.inverse_transform(val_caseset_obj.labels)
             
         return tuple(obj for obj in [dataset_obj, train_caseset_obj, val_caseset_obj] if obj)
     
@@ -352,7 +367,20 @@ class FrameWork(object):
         
         for model_type, model in self.models.__dict__.items():
             if model_type == 'oevnn':
-                self.predict_oev(caseset_obj, dump_predictions=False)
+                self.predict_oev(caseset_obj, dump_predictions=False)                
+                if caseset_obj.set_id == 'test':
+                    try:
+                        bool(caseset_obj.labels);
+                    except ValueError:
+                        caseset_obj.labels += caseset_obj.predictions_oev.reshape(-1,1)*(2)*caseset_obj.tensor_features_oev
+                        caseset_obj.labels = np.transpose(
+                            [
+                                caseset_obj.labels[:,0],
+                                caseset_obj.labels[:,1],
+                                caseset_obj.labels[:,2],
+                                -caseset_obj.labels[:,0]-caseset_obj.labels[:,2] ### 2D traceless condition
+                            ]
+                        )
                 continue
 
             caseset_obj.predictions = dataset_obj.labels_scaler.inverse_transform(
