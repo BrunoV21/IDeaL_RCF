@@ -165,4 +165,5 @@ cython_debug/
 autogen_utils/
 code_base/
 project_root/
+experiments/final_results_cross_val/
 MyCodingAgent.ipynb
