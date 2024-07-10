@@ -23,26 +23,31 @@ except ModuleNotFoundError:
 
 from tensorflow.keras.layers import Input, Lambda, Add, Concatenate
 from tensorflow.keras import Model
+from tensorflow.keras.models import load_model, save_model
 import matplotlib.pyplot as plt
 from typing import Optional
+from pathlib import Path
 import tensorflow as tf
 import polars as pl
 import numpy as np
+import os
 
 class FrameWork(object):
     def __init__(self,
-                 model_config :ModelConfig):
+                 model_config :ModelConfig,
+                 _id :Optional[str]=None):
         
         if not isinstance(model_config, ModelConfig):
             raise AssertionError(f'[config_error] model_config must be of instance {ModelConfig()}')
         
         self.config = model_config
+        self._id = _id
 
         tf.random.set_seed(42)
 
+        self.compiled_from_files = False
         self.models = SimpleNamespace()
         self.history = SimpleNamespace()
-        self.build()
 
 
     def build(self):
@@ -131,7 +136,6 @@ class FrameWork(object):
 
             tbnn._name = 'tbnn_framework'
             self.models.tbnn=tbnn
-
         
         if self.config._oevnltbnn:
             input_tensor_features_oev_linear_layer = Input(
@@ -159,6 +163,9 @@ class FrameWork(object):
 
 
     def compile_models(self):
+        
+        self.build() if not self.compiled_from_files else ...
+
         for model_type, model in self.models.__dict__.items():
             model.compile(
                 loss=self.config.loss,
@@ -359,7 +366,8 @@ class FrameWork(object):
                   dataset_obj : DataSet,
                   caseset_obj :CaseSet,
                   force_realizability :Optional[bool]=True,
-                  dump_predictions :Optional[bool]=True):
+                  dump_predictions :Optional[bool]=True,
+                  calculate_nl_labels :Optional[bool]=False):
         
         x = [caseset_obj.features, caseset_obj.tensor_features]
         if self.config._evtbnn:
@@ -368,11 +376,14 @@ class FrameWork(object):
         for model_type, model in self.models.__dict__.items():
             if model_type == 'oevnn':
                 self.predict_oev(caseset_obj, dump_predictions=False)                
-                if caseset_obj.set_id == 'test':
+                if caseset_obj.set_id == 'test' or calculate_nl_labels or self.compiled_from_files:
                     try:
                         bool(caseset_obj.labels);
                     except ValueError:
-                        caseset_obj.labels += caseset_obj.predictions_oev.reshape(-1,1)*(2)*caseset_obj.tensor_features_oev
+                        try:
+                            caseset_obj.labels += caseset_obj.predictions_oev.reshape(-1,1)*(2)*caseset_obj.tensor_features_oev
+                        except ValueError:
+                            ...
                         caseset_obj.labels = np.transpose(
                             [
                                 caseset_obj.labels[:,0],
@@ -433,11 +444,26 @@ class FrameWork(object):
         fig.show()
 
 
-
-
     def train_metrics(self):
         for model_type, history_metrics in self.history.__dict__.items():
             self.plot_metrics(model_type, history_metrics)
+
+
+    def load_from_dir(self, 
+                      dir_path :Path):
+        
+        models_dir = f'{dir_path}/models'
+        for model_file in os.listdir(Path(models_dir)):
+            model_type = model_file.split('.')[0]
+            model = load_model(f'{models_dir}/{model_file}', compile=False)
+            setattr(self.models, model_type, model)
+            print(f'[{model_type}] loaded sucessfully')
+        
+        self.compiled_from_files=True
+
+    ### option to save to directory
+    ### triggered directly inside train via a local variable
+
 
 
 if __name__ == '__main__':
