@@ -84,24 +84,27 @@ class DataSet(object):
         test_set = self.stack_case_sets(test_set, set_id='test')
         
         if train_set:
+            ### transform data
+            if self.config.features_transforms:
+                train_set._transform_features()
+                val_set._transform_features() if val_set else ...
+                test_set._transform_features() if test_set else ...
+
             ### build scalers
             self.features_scaler, self.labels_scaler, self.labels_oev_scaler = train_set._fit_scaler(self.features_scaler , self.labels_scaler, self.labels_oev_scaler)
             
+            ### scale set
+            train_set._scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler)
+            val_set._scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler) if self.config.valset else ...
+            test_set._scale(self.features_scaler, None, None) if self.config.testset else ...
+
             ### build mixer features if enablred
             if self.config.enable_mixer:
                 self.mixer_invariant_features_scaler = train_set._fit_mixer_scaler(self.mixer_invariant_features_scaler)
-                train_set._scale_mixer(self.mixer_invariant_features_scaler)
-                val_set._scale_mixer(self.mixer_invariant_features_scaler) if self.config.valset else ...
-                test_set._scale_mixer(self.mixer_invariant_features_scaler) if self.config.testset else ...
-                
                 train_set._build_mixer_features(self.mixer_invariant_features_scaler)
                 val_set._build_mixer_features(self.mixer_invariant_features_scaler) if self.config.valset else ...
                 test_set._build_mixer_features(self.mixer_invariant_features_scaler) if self.config.testset else ...
             
-            ### scale set
-            train_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler)
-            val_set._transform_scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler) if self.config.valset else ...
-            test_set._transform_scale(self.features_scaler, None, None) if self.config.testset else ...
 
         tain_val_test = tuple(_set for _set in [train_set, val_set, test_set] if _set)
 

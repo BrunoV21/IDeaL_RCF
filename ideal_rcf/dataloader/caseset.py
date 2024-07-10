@@ -230,13 +230,10 @@ class CaseSet(object):
         return features_scaler, labels_scaler, labels_oev_scaler
 
 
-    def _transform_scale(self,
+    def _scale(self,
                features_scaler :Union[StandardScaler, MinMaxScaler, None],
                labels_scaler :Union[StandardScaler, MinMaxScaler, None],
                labels_oev_scaler :Union[StandardScaler, MinMaxScaler, None]):
-        
-        if self.config.features_transforms:
-            self._transform_features()
         
         try:
             self.features = features_scaler.transform(self.features) if features_scaler else self.features
@@ -252,7 +249,7 @@ class CaseSet(object):
             
         except ValueError:
             self.labels = labels_oev_scaler.transform(self.labels) if labels_oev_scaler else self.labels
-            self.tensor_features_oev = labels_oev_scaler.transform(self.tensor_features_linear) if labels_oev_scaler else self.tensor_features_linear
+            self.tensor_features_oev = labels_oev_scaler.transform(self.tensor_features_oev) if labels_oev_scaler else self.tensor_features_oev
 
 
         if self.config.debug:
@@ -272,15 +269,6 @@ class CaseSet(object):
             print(f'[{self.set_id or self.case[0]}] [mixer_info] fitted {mixer_invariant_features_scaler}')
 
         return mixer_invariant_features_scaler  
-
-
-    def _scale_mixer(self,
-                      mixer_invariant_features_scaler :Union[StandardScaler, MinMaxScaler, None]):
-        
-        self.features = mixer_invariant_features_scaler.transform(self.features) if mixer_invariant_features_scaler else self.features
-
-        if self.config.debug:
-            print(f'[{self.set_id or self.case[0]}] [mixer_info] applied {mixer_invariant_features_scaler}')
 
 
     def _build_mixer_features(self,
