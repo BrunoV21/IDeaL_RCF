@@ -1,9 +1,3 @@
-try:
-    from ideal_rcf.models.utils import custom_tanh
-
-except ModuleNotFoundError:
-    from utils import custom_tanh
-
 from typing import Optional, Union, List, Any, Tuple
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
 from tensorflow.keras.regularizers import L2
@@ -103,7 +97,7 @@ class ModelConfig(BaseConfig):
                  tbnn_activations :Optional[Union[str, Any]]='selu',
                  evnn_activations :Optional[Union[str, Any]]='selu',
                  oevnn_activations :Optional[Union[str, Any]]='selu',
-                 eV_activation :Optional[Union[str,Any]]=custom_tanh,
+                 eV_activation :Optional[Union[str,Any]]='exponential',
                  metrics :Optional[List[Union[str, Any]]]=['mse', 'mae'],
                  keras_callbacks :Optional[Union[List[Union[ReduceLROnPlateau, EarlyStopping, Any]], None]]=None,
                  model_id :Optional[str]=None,

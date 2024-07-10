@@ -1,10 +1,5 @@
-from tensorflow.keras import backend as K
 from typing import Optional
 import numpy as np
-
-
-def custom_tanh(x):
-    return 1.5*K.tanh(x)+.5
 
 
 class MakeRealizable(object):
