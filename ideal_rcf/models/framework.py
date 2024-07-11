@@ -24,12 +24,14 @@ except ModuleNotFoundError:
 from tensorflow.keras.layers import Input, Lambda, Add, Concatenate
 from tensorflow.keras import Model
 from tensorflow.keras.models import load_model, save_model
+from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 from typing import Optional
 from pathlib import Path
 import tensorflow as tf
 import polars as pl
 import numpy as np
+from copy import deepcopy
 import os
 
 class FrameWork(object):
@@ -181,98 +183,130 @@ class FrameWork(object):
 
     def train(self,
               dataset_obj :DataSet,
-              train_caseset_obj :CaseSet,
-              val_caseset_obj :CaseSet=None):
+              train_caseset :CaseSet,
+              val_caseset:CaseSet=None,
+              use_pretrained_oevnn :Optional[bool]=False,
+              dry_run :Optional[bool]=False):
         
         self.config.ensure_attr_group(['learning_rate', 'epochs', 'batch'])
         
         if not isinstance(dataset_obj, DataSet):
             raise TypeError(f'dataset_obj must be {DataSet} instance')
         
-        if not isinstance(train_caseset_obj, CaseSet):
+        if not isinstance(train_caseset, CaseSet):
             raise TypeError(f'train_caseset_obj must be {CaseSet} instance')
         
-        if val_caseset_obj and not isinstance(val_caseset_obj, CaseSet):
+        if val_caseset and not isinstance(val_caseset, CaseSet):
             raise TypeError(f'val_caseset_obj must be {CaseSet} instance')
         
-        copy_val_caseset_obj = None
+        train_caseset_obj = CaseSet(
+                    case=train_caseset.case,
+                    set_config=train_caseset.config, 
+                    set_id=train_caseset.set_id,
+                    initialize_empty=True
+                )                
+        train_caseset_obj._import_from_copy(*deepcopy(train_caseset._export_for_stack()))
+
+        if val_caseset:
+            val_caseset_obj = CaseSet(
+                        case=val_caseset.case,
+                        set_config=val_caseset.config, 
+                        set_id=val_caseset.set_id,
+                        initialize_empty=True
+                    )                
+            val_caseset_obj._import_from_copy(*deepcopy(val_caseset._export_for_stack()))
         
         if self.config.shuffle:
             train_caseset_obj.shuffle()
-            if val_caseset_obj:
-                copy_val_caseset_obj = CaseSet(
-                    case=val_caseset_obj.case,
-                    set_config=val_caseset_obj.config, 
-                    set_id=val_caseset_obj.set_id,
-                    initialize_empty=True
-                )                
-                copy_val_caseset_obj._import_from_copy(*val_caseset_obj._export_for_stack())
-                
-                val_caseset_obj.shuffle()
-
-        x = [train_caseset_obj.features]
-        y = [train_caseset_obj.labels]
-
-        if val_caseset_obj:
-            x_val = [val_caseset_obj.features]
-            y_val = [val_caseset_obj.labels]
-
-        else:
-            x_val = []
-            y_val = []
+            val_caseset_obj.shuffle()
         
         if self.config._oevnltbnn:
-            x.append(train_caseset_obj.tensor_features_oev)
-            if x_val:
-                x_val.append(val_caseset_obj.tensor_features_oev)
+            if train_caseset.config.features_transforms:
+                train_caseset_obj._transform_features()
 
-            print('> starting oevnn traninng ...')
-            history = self.models.oevnn.fit(
-                x=x,
-                y=y,
-                batch_size=self.config.batch,
-                epochs=self.config.epochs,
-                validation_data=(x_val, y_val) if val_caseset_obj else None,
-                verbose=self.config.verbose,
-                callbacks=self.config.keras_callbacks
-            )
-
-            history_learning_rate = {'learning_rate': round(self.models.oevnn.optimizer.lr.numpy(), 5)}
-            history_dict = history.history
-            history_dict.update(history_learning_rate)
-            self.history.oevnn = pl.from_dicts(history_dict)
+            dataset_obj.features_oev_scaler, dataset_obj.labels_oev_scaler = train_caseset_obj._fit_scaler_oev(dataset_obj.features_oev_scaler, dataset_obj.labels_oev_scaler)
+            train_caseset_obj._scale_oev(dataset_obj.features_oev_scaler, dataset_obj.labels_oev_scaler)
             
-            ### scale back labels used in to train oevnn with inverse_transform 
-            ### get nl labels from oevnn model output, still using invariant_features + tensor_basis_oev
-            self.calculate_nl_labels(dataset_obj, train_caseset_obj, dump=False)
-            self.calculate_nl_labels(dataset_obj, val_caseset_obj, dump=False) if val_caseset_obj else None
-            self.calculate_nl_labels(dataset_obj, copy_val_caseset_obj, dump=False) if copy_val_caseset_obj else None
-
-            ### fit scaler
-            train_caseset_obj.labels = dataset_obj.labels_scaler.fit_transform(train_caseset_obj.labels)
-            if val_caseset_obj:
-                val_caseset_obj.labels = dataset_obj.labels_scaler.transform(val_caseset_obj.labels)
+            if self.config.oevnn_mixer_config:
+                train_caseset_obj._fit_mixer_scaler(dataset_obj.mixer_invariant_oev_features_scaler)
+                train_caseset_obj._build_mixer_features(dataset_obj.mixer_invariant_oev_features_scaler)
             
-            ### extract evnn model from trained and store it for inference in self.models.oevnn
-            self.extract_oev()
-            ### store oev predictions in each caseset althought they are shuffled
-            ### so couldget away with doing it only later
-            # self.predict_oev(train_caseset_obj, dump_predictions=False)
-            # self.predict_oev(val_caseset_obj, dump_predictions=False) if val_caseset_obj else ...
-            x = x[:-1]            
+            if val_caseset:
+                if val_caseset.config.features_transforms:
+                    val_caseset_obj._transform_features()
+                val_caseset_obj._scale_oev(dataset_obj.features_oev_scaler, dataset_obj.labels_oev_scaler)
+                val_caseset_obj._build_mixer_features(dataset_obj.mixer_invariant_oev_features_scaler) if self.config.oevnn_mixer_config else ...
+            
+            x = [train_caseset_obj.features, train_caseset_obj.tensor_features_oev]
             y = [train_caseset_obj.labels]
-            if x_val:
-                x_val = x_val[:-1]                
+
+            if val_caseset:
+                x_val = [val_caseset_obj.features, val_caseset_obj.tensor_features_oev]
                 y_val = [val_caseset_obj.labels]
 
-        x.append(train_caseset_obj.tensor_features)
-        if x_val:
-            x_val.append(val_caseset_obj.tensor_features)
+            else:
+                x_val = []
+                y_val = []
+
+            if not use_pretrained_oevnn:
+                print('> starting oevnn traninng ...')
+                history = self.models.oevnn.fit(
+                    x=x,
+                    y=y,
+                    batch_size=self.config.batch,
+                    epochs=self.config.epochs,
+                    validation_data=(x_val, y_val) if val_caseset_obj else None,
+                    verbose=self.config.verbose,
+                    callbacks=self.config.keras_callbacks
+                )
+
+                history_learning_rate = {'learning_rate': round(self.models.oevnn.optimizer.lr.numpy(), 5)}
+                history_dict = history.history
+                history_dict.update(history_learning_rate)
+                self.history.oevnn = pl.from_dicts(history_dict)
+                self.extract_oev()
+                
+            self.predict_oev(dataset_obj, train_caseset)
+            self.regress_nl_labels(train_caseset) if self.config.regress_nl_labels else self.calculate_nl_labels(dataset_obj, train_caseset)
+
+            if val_caseset:
+                self.predict_oev(dataset_obj, val_caseset)
+                self.regress_nl_labels(val_caseset) if self.config.regress_nl_labels else self.calculate_nl_labels(dataset_obj, val_caseset)
+
+            train_caseset_obj._import_from_copy(*deepcopy(train_caseset._export_for_stack()))
+            val_caseset_obj._import_from_copy(*deepcopy(val_caseset._export_for_stack())) if val_caseset else ...
+
+            if self.config.shuffle:
+                train_caseset_obj.shuffle()
+                val_caseset_obj.shuffle()
+
+        dataset_obj.features_scaler, dataset_obj.labels_scaler, dataset_obj.mixer_invariant_features_scaler = train_caseset_obj._fit_scaler(dataset_obj.features_scaler, dataset_obj.labels_scaler, dataset_obj.mixer_invariant_features_scaler)
+        if self.config.tbnn_mixer_config and self.config.evnn_mixer_config:
+            train_caseset_obj._build_mixer_features(dataset_obj.mixer_invariant_features_scaler)
+        if train_caseset.config.features_transforms:
+            train_caseset_obj._transform_features()
+        train_caseset_obj._scale(dataset_obj.features_scaler, dataset_obj.labels_scaler)
+
+        if val_caseset:
+            if self.config.tbnn_mixer_config and self.config.evnn_mixer_config:
+                val_caseset_obj._build_mixer_features(dataset_obj.mixer_invariant_features_scaler)
+            if val_caseset.config.features_transforms:
+                val_caseset_obj._transform_features()
+            val_caseset_obj._scale(dataset_obj.features_scaler, dataset_obj.labels_scaler)
+        
+        x = [train_caseset_obj.features, train_caseset_obj.tensor_features]
+        y = [train_caseset_obj.labels]
+        if val_caseset:
+            x_val = [val_caseset_obj.features, val_caseset_obj.tensor_features]
+            y_val = [val_caseset_obj.labels]
 
         if self.config._evtbnn:
             x.append(train_caseset_obj.tensor_features_linear)
             if x_val:
-                x_val.append(val_caseset_obj.tensor_features_linear)  
+                x_val.append(val_caseset_obj.tensor_features_linear)
+
+        if dry_run:
+            return tuple(obj for obj in [dataset_obj, train_caseset_obj, val_caseset_obj] if obj)
 
         for model_type, model in self.models.__dict__.items():
             if model_type == 'oevnn':
@@ -294,16 +328,9 @@ class FrameWork(object):
 
             setattr(self.models, model_type, model)
             setattr(self.history, model_type, pl.from_dicts(history_dict))
-        
-        train_caseset_obj.labels = dataset_obj.labels_scaler.inverse_transform(train_caseset_obj.labels)
-        if y_val:
-            if copy_val_caseset_obj:
-                val_caseset_obj._import_from_copy(*copy_val_caseset_obj._export_for_stack())
-            else:
-                val_caseset_obj.labels = dataset_obj.labels_scaler.inverse_transform(val_caseset_obj.labels)
-            
+
         return tuple(obj for obj in [dataset_obj, train_caseset_obj, val_caseset_obj] if obj)
-    
+
 
     def extract_oev(self):
         try:
@@ -321,88 +348,144 @@ class FrameWork(object):
             print(self.models.oevnn.summary())
 
 
-    def calculate_nl_labels(self,
-                            dataset_obj :DataSet,
-                            caseset_obj :CaseSet,
-                            dump :Optional[bool]=True):
+    def regress_nl_labels(self,
+                          caseset :CaseSet):
         
-        linear_term = dataset_obj.labels_oev_scaler.inverse_transform(
-            self.models.oevnn([caseset_obj.features, caseset_obj.tensor_features_oev])[:,:,0]
-        )
-
-        full_term = dataset_obj.labels_oev_scaler.inverse_transform(caseset_obj.labels)
-
-        nl_term = full_term - linear_term
-
-        nl_term = np.transpose(
+        if caseset.labels_compiled:
+            return
+        
+        caseset.tensor_features_oev        
+        reg_nnls = LinearRegression(positive=True)
+        oev_labels = np.array(
             [
-                nl_term[:,0],
-                nl_term[:,1],
-                nl_term[:,2],
-                -nl_term[:,0]-nl_term[:,2] ### 2D traceless condition
+                reg_nnls.fit(-2*_S.reshape(-1,1), _a.reshape(-1,1)).coef_ 
+                for _S, _a in zip(caseset.tensor_features_oev, caseset.labels)
             ]
+        ).reshape(caseset.tensor_features_oev.shape[0], 1)
+        
+        caseset.labels += 2*oev_labels*caseset.tensor_features_oev
+
+        caseset.labels = np.transpose(
+                                    [
+                                        caseset.labels[:,0],
+                                        caseset.labels[:,1],
+                                        caseset.labels[:,2],
+                                        -caseset.labels[:,0]-caseset.labels[:,2] ### 2D traceless condition
+                                    ]
+                                )
+        if self.config.debug:
+            print('[nl labels] regressing with nnls')
+
+        caseset.labels_compiled=True        
+
+
+    def calculate_nl_labels(self,
+                            dataset_obj :DataSet, 
+                            caseset: CaseSet):
+        if caseset.labels_compiled:
+            return
+        
+        caseset.labels -= dataset_obj.labels_oev_scaler.inverse_transform(
+            dataset_obj.labels_oev_scaler.transform(caseset.tensor_features_oev)*-2*caseset.predictions_oev.reshape(-1,1)
         )
+        
+        caseset.labels = np.transpose(
+                                    [
+                                        caseset.labels[:,0],
+                                        caseset.labels[:,1],
+                                        caseset.labels[:,2],
+                                        -caseset.labels[:,0]-caseset.labels[:,2] ### 2D traceless condition
+                                    ]
+                                )
+        
+        caseset.labels_compiled=True
 
-        if dump:
-            return nl_term
-
-        else:
-            caseset_obj.labels = nl_term
-            # return caseset_obj
 
     def predict_oev(self,
-                    caseset_obj :CaseSet,
+                    dataset_obj :DataSet,
+                    caseset :CaseSet,
+                    scaled_features :Optional[bool]=False,
                     dump_predictions :Optional[bool]=True):
         
-        caseset_obj.predictions_oev = self.models.oevnn.predict([caseset_obj.features])[:,0]
+        caseset_obj = CaseSet(
+                    case=caseset.case,
+                    set_config=caseset.config, 
+                    set_id=caseset.set_id,
+                    initialize_empty=True
+                )        
+        caseset_obj._import_from_copy(*deepcopy(caseset._export_for_stack()))
+        if not scaled_features:
+            if caseset.config.features_transforms:
+                caseset_obj._transform_features()
+            caseset_obj._scale_oev(dataset_obj.features_oev_scaler, dataset_obj.labels_oev_scaler)
+            if self.config.oevnn_mixer_config:
+                caseset_obj._build_mixer_features(dataset_obj.mixer_invariant_oev_features_scaler)
+
+        caseset.predictions_oev = self.models.oevnn.predict([caseset_obj.features])[:,0]
         
         if dump_predictions:
-            return caseset_obj.predictions_oev
+            return caseset.predictions_oev
         else:
             return None
 
 
-    def inference(self,
-                  dataset_obj : DataSet,
-                  caseset_obj :CaseSet,
-                  force_realizability :Optional[bool]=True,
-                  dump_predictions :Optional[bool]=True,
-                  calculate_nl_labels :Optional[bool]=False):
+    def predict_evtbnn(self,
+                       dataset_obj :DataSet,
+                       caseset :CaseSet,
+                       model,
+                       force_realizability :bool,
+                       scaled_features :Optional[bool]=False,):
+        
+        caseset_obj = CaseSet(
+                    case=caseset.case,
+                    set_config=caseset.config, 
+                    set_id=caseset.set_id,
+                    initialize_empty=True
+                )        
+        caseset_obj._import_from_copy(*deepcopy(caseset._export_for_stack()))
+
+        if not scaled_features:
+            if self.config.tbnn_mixer_config and self.config.evnn_mixer_config:
+                caseset_obj._build_mixer_features(dataset_obj.mixer_invariant_features_scaler)
+            if caseset.config.features_transforms:
+                caseset_obj._transform_features()
+            caseset_obj._scale(dataset_obj.features_scaler, dataset_obj.labels_scaler)
         
         x = [caseset_obj.features, caseset_obj.tensor_features]
         if self.config._evtbnn:
             x.append(caseset_obj.tensor_features_linear)
+
+        caseset.predictions = dataset_obj.labels_scaler.inverse_transform(
+                model.predict(x)
+        )
         
+        if force_realizability:
+            caseset.predictions = MakeRealizable(debug=self.config.debug).force_realizability(caseset.predictions)
+
+
+    def inference(self,
+                  dataset_obj :DataSet,
+                  caseset :CaseSet,
+                  force_realizability :Optional[bool]=True,
+                  dump_predictions :Optional[bool]=False):
+       
         for model_type, model in self.models.__dict__.items():
             if model_type == 'oevnn':
-                self.predict_oev(caseset_obj, dump_predictions=False)                
-                if caseset_obj.set_id == 'test' or calculate_nl_labels or self.compiled_from_files:
+                try:
+                    bool(caseset.predictions_oev);                
+                    self.predict_oev(dataset_obj, caseset)
                     try:
-                        bool(caseset_obj.labels);
+                        bool(caseset.labels);
                     except ValueError:
-                        try:
-                            caseset_obj.labels += caseset_obj.predictions_oev.reshape(-1,1)*(2)*caseset_obj.tensor_features_oev
-                        except ValueError:
-                            ...
-                        caseset_obj.labels = np.transpose(
-                            [
-                                caseset_obj.labels[:,0],
-                                caseset_obj.labels[:,1],
-                                caseset_obj.labels[:,2],
-                                -caseset_obj.labels[:,0]-caseset_obj.labels[:,2] ### 2D traceless condition
-                            ]
-                        )
+                        self.regress_nl_labels(caseset) if self.config.regress_nl_labels else self.calculate_nl_labels(dataset_obj, caseset)
+                except ValueError:
+                    ...
                 continue
 
-            caseset_obj.predictions = dataset_obj.labels_scaler.inverse_transform(
-                model.predict([x])
-            )
-
-            if force_realizability:
-                caseset_obj.predictions = MakeRealizable(debug=self.config.debug).force_realizability(caseset_obj.predictions)
+            self.predict_evtbnn(dataset_obj, caseset, model, force_realizability)
 
             if dump_predictions:
-                return caseset_obj.predictions_oev, caseset_obj.predictions if self.config._oevnltbnn else caseset_obj.predictions
+                return caseset.predictions_oev, caseset.predictions if self.config._oevnltbnn else caseset.predictions
             else:
                 return None
 
@@ -453,6 +536,8 @@ class FrameWork(object):
                       dir_path :Path):
         
         models_dir = f'{dir_path}/models'
+        if not os.path.exists(models_dir):
+            raise FileNotFoundError(f'Ensure {models_dir} exists and contains the model files')
         for model_file in os.listdir(Path(models_dir)):
             model_type = model_file.split('.')[0]
             model = load_model(f'{models_dir}/{model_file}', compile=False)
@@ -461,9 +546,16 @@ class FrameWork(object):
         
         self.compiled_from_files=True
 
-    ### option to save to directory
-    ### triggered directly inside train via a local variable
 
+    def dump_to_dir(self, 
+                    dir_path :Path):
+        
+        models_dir = f'{dir_path}/models'
+        if not os.path.exists(models_dir):
+            os.mkdir(models_dir)
+        for model_type, model in self.models.__dict__.items():
+            save_model(model, f'{models_dir}/{model_type}.h5')
+            print(f'[{model_type}] dumped sucessfully')
 
 
 if __name__ == '__main__':

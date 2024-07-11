@@ -73,10 +73,10 @@ class MixerConfig(BaseConfig):
 
 class ModelConfig(BaseConfig):
     def __init__(self,
-                 layers_tbnn :int,
-                 units_tbnn :int, 
-                 features_input_shape :Tuple[int], 
-                 tensor_features_input_shape :Tuple[int],
+                 layers_tbnn :Optional[int]=None,
+                 units_tbnn :Optional[int]=None, 
+                 features_input_shape :Optional[Tuple[int]]=None, 
+                 tensor_features_input_shape :Optional[Tuple[int]]=None,
                  layers_evnn :Optional[int]=None,
                  units_evnn :Optional[int]=None,                  
                  tensor_features_linear_input_shape :Optional[Union[Tuple[int],None]]=None,
@@ -87,6 +87,7 @@ class ModelConfig(BaseConfig):
                  evnn_mixer_config :Optional[Union[MixerConfig, None]]=None,
                  oevnn_mixer_config :Optional[Union[MixerConfig, None]]=None,
                  optimizer :Optional[Any]=Adam,
+                 regress_nl_labels :Optional[bool]=True,
                  loss :Optional[Any]=Huber(),
                  learning_rate :Optional[int]=None,
                  learning_rate_oevnn :Optional[int]=None,
@@ -128,13 +129,15 @@ class ModelConfig(BaseConfig):
         self.epochs = self.ensure_int_instance(epochs)
         self.learning_rate_oevnn = learning_rate_oevnn if learning_rate_oevnn else self.learning_rate
         
+        self.regress_nl_labels = regress_nl_labels
+
         self.loss = loss
         self.optimizer = optimizer
         self.initializer = initializer
         self.regularizer = regularizer
         
         self.tbnn_activations = tbnn_activations
-        self.ensure_attr_group(['layers_tbnn', 'units_tbnn', 'features_input_shape', 'tensor_features_input_shape', 'tbnn_activations'])
+        self.ensure_attr_group(['layers_tbnn', 'units_tbnn', 'features_input_shape', 'tensor_features_input_shape'])
 
         self.evnn_activations = evnn_activations
         self.ensure_attr_group(['layers_evnn', 'units_evnn', 'tensor_features_linear_input_shape'])
