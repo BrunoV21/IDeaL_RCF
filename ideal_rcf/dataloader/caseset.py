@@ -43,8 +43,9 @@ class CaseSet(object):
 
         self.predictions = None
         self.predictions_oev = None
+        self.labels_compiled = False
 
-        if not initialize_empty:            
+        if not initialize_empty:
             if self.config.features_filter and self.config.features_filter != self.config.all_features:
                 self._filter_features()
 
@@ -206,59 +207,38 @@ class CaseSet(object):
                 self.features[:,i] = transform(self.features[:,i], self.config.debug)
 
 
-    def _fit_scaler(self,
-                    features_scaler :Union[StandardScaler, MinMaxScaler, None],
-                    labels_scaler :Union[StandardScaler, MinMaxScaler, None],
-                    labels_oev_scaler :Union[StandardScaler, MinMaxScaler, None]):
+    def _fit_scaler_oev(self,
+                        features_oev_scaler :Union[StandardScaler, MinMaxScaler, None],
+                        labels_oev_scaler :Union[StandardScaler, MinMaxScaler, None]):
         
-        features_scaler.fit(self.features) if features_scaler else ...
+        features_oev_scaler.fit(self.features) if features_oev_scaler else ...
         try: 
-            bool(self.tensor_features_oev);             
-            labels_scaler.fit(self.labels) if labels_scaler else ...
-
-        except ValueError:
-            labels_oev_scaler.fit(self.labels) if labels_oev_scaler  else ...
-           
-        
-        if self.config.debug:
-            applied_scalers = [
-                scaler for scaler in [features_scaler, labels_scaler, labels_oev_scaler] 
-                if scaler
-            ]
-            print(f'[{self.set_id or self.case[0]}] fitted scalers {applied_scalers}')
-
-        return features_scaler, labels_scaler, labels_oev_scaler
-
-
-    def _scale(self,
-               features_scaler :Union[StandardScaler, MinMaxScaler, None],
-               labels_scaler :Union[StandardScaler, MinMaxScaler, None],
-               labels_oev_scaler :Union[StandardScaler, MinMaxScaler, None]):
-        
-        try:
-            self.features = features_scaler.transform(self.features) if features_scaler else self.features
-
-        except ValueError: ### triggered by Mixer which has been scaled already
-            if self.config.debug:
-                features_scaler = None
-                print(f'[{self.set_id or self.case[0]}] [mixer_info] features_scaler was not applied as mixer_invariant_features_scaler was already applied')
-
-        try:
             bool(self.tensor_features_oev);
-            self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels 
-            
+        
+        except ValueError:         
+            labels_oev_scaler.fit(self.labels) if labels_oev_scaler else ...
+
+        return features_oev_scaler, labels_oev_scaler
+
+
+    def _scale_oev(self,
+                   features_oev_scaler :Union[StandardScaler, MinMaxScaler, None],
+                   labels_oev_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        self.features = features_oev_scaler.transform(self.features) if features_oev_scaler else self.features
+
+        try: 
+           bool(self.tensor_features_oev);
+        
         except ValueError:
-            self.labels = labels_oev_scaler.transform(self.labels) if labels_oev_scaler else self.labels
+            try:
+                bool(self.labels);
+            except ValueError:
+                self.labels = labels_oev_scaler.transform(self.labels) if labels_oev_scaler else self.labels
             self.tensor_features_oev = labels_oev_scaler.transform(self.tensor_features_oev) if labels_oev_scaler else self.tensor_features_oev
 
+        # return [scaled_features, scaled_tensor_features_oev], scaled_labels
 
-        if self.config.debug:
-            applied_scalers = [
-                scaler for scaler in [features_scaler, labels_scaler, labels_oev_scaler] 
-                if scaler
-            ]
-            print(f'[{self.set_id or self.case[0]}] applied scalers {applied_scalers}')
-    
 
     def _fit_mixer_scaler(self,
                           mixer_invariant_features_scaler :Union[StandardScaler, MinMaxScaler, None]):
@@ -269,6 +249,36 @@ class CaseSet(object):
             print(f'[{self.set_id or self.case[0]}] [mixer_info] fitted {mixer_invariant_features_scaler}')
 
         return mixer_invariant_features_scaler  
+
+
+    def _fit_scaler(self,
+                    features_scaler :Union[StandardScaler, MinMaxScaler, None],
+                    labels_scaler :Union[StandardScaler, MinMaxScaler, None],
+                    mixer_invariant_features_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        features_scaler.fit(self.features) if features_scaler else ...
+        labels_scaler.fit(self.labels) if labels_scaler else ...
+        mixer_invariant_features_scaler.fit(self.features) if mixer_invariant_features_scaler else ...
+        
+        if self.config.debug:
+            applied_scalers = [
+                scaler for scaler in [features_scaler, labels_scaler, mixer_invariant_features_scaler] 
+                if scaler
+            ]
+            print(f'[{self.set_id or self.case[0]}] fitted scalers {applied_scalers}')
+
+        return features_scaler, labels_scaler, mixer_invariant_features_scaler
+
+
+    def _scale(self,
+               features_scaler :Union[StandardScaler, MinMaxScaler, None],
+               labels_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        self.features = features_scaler.transform(self.features) if features_scaler and not self.config.enable_mixer else self.features
+        try:
+            bool(self.labels);
+        except ValueError:
+            self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels
 
 
     def _build_mixer_features(self,

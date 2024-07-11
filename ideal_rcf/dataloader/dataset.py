@@ -7,8 +7,11 @@ except ModuleNotFoundError:
     from caseset import CaseSet
 
 from typing import List, Optional
+from pathlib import Path
 from tqdm import tqdm
 from copy import deepcopy
+import joblib
+import os
 
 class DataSet(object):
     def __init__(self,
@@ -24,9 +27,13 @@ class DataSet(object):
 
         self.features_scaler = self.config.features_scaler
         self.labels_scaler = self.config.labels_scaler
+        self.features_oev_scaler = self.config.features_oev_scaler
         self.labels_oev_scaler = self.config.labels_oev_scaler
         self.mixer_invariant_features_scaler = self.config.mixer_invariant_features_scaler
+        self.mixer_invariant_oev_features_scaler = self.config.mixer_invariant_oev_features_scaler
         
+        self.scaler_objs = [key for key, value in self.__dict__.items() if ('scaler' in key and value)]
+
         self.contents = [
             CaseSet(case=case, set_config=self.config)
             for case in tqdm(self.cases)
@@ -46,6 +53,32 @@ class DataSet(object):
     def shuffle(self):
         ...
         return 'Implemented at CaseSet level'
+
+
+    def dump_scalers(self, 
+                     dir_path :Path):
+        scalers_dir = f'{dir_path}/scalers'
+        if not os.path.exists(scalers_dir):
+            os.mkdir(scalers_dir)
+
+        for scaler_type in self.scaler_objs:
+            scaler = getattr(self,scaler_type)
+            joblib.dump(scaler,f'{scalers_dir}/{scaler_type}.save')
+            print(f'[{scaler_type}] dumped sucessfully')
+
+
+    def load_scalers(self, 
+                     dir_path :Path):
+        
+        scalers_dir = f'{dir_path}/scalers'
+        if not os.path.exists(scalers_dir):
+            raise FileNotFoundError(f'Ensure {scalers_dir} exists and contains the scaler files')
+        
+        for scaler_file in os.listdir(Path(scalers_dir)):
+            scaler_type = scaler_file.split('.')[0]
+            scaler = joblib.load(f'{scalers_dir}/{scaler_file}')
+            setattr(self, scaler_type, scaler)
+            print(f'[{scaler_type}] loaded sucessfully')        
 
 
     def stack_case_sets(self,
@@ -81,30 +114,7 @@ class DataSet(object):
         
         train_set = self.stack_case_sets(train_set, set_id='train')
         val_set = self.stack_case_sets(val_set, set_id='val')
-        test_set = self.stack_case_sets(test_set, set_id='test')
-        
-        if train_set:
-            ### transform data
-            if self.config.features_transforms:
-                train_set._transform_features()
-                val_set._transform_features() if val_set else ...
-                test_set._transform_features() if test_set else ...
-
-            ### build scalers
-            self.features_scaler, self.labels_scaler, self.labels_oev_scaler = train_set._fit_scaler(self.features_scaler , self.labels_scaler, self.labels_oev_scaler)
-            
-            ### scale set
-            train_set._scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler)
-            val_set._scale(self.features_scaler, self.labels_scaler, self.labels_oev_scaler) if self.config.valset else ...
-            test_set._scale(self.features_scaler, None, None) if self.config.testset else ...
-
-            ### build mixer features if enablred
-            if self.config.enable_mixer:
-                self.mixer_invariant_features_scaler = train_set._fit_mixer_scaler(self.mixer_invariant_features_scaler)
-                train_set._build_mixer_features(self.mixer_invariant_features_scaler)
-                val_set._build_mixer_features(self.mixer_invariant_features_scaler) if self.config.valset else ...
-                test_set._build_mixer_features(self.mixer_invariant_features_scaler) if self.config.testset else ...
-            
+        test_set = self.stack_case_sets(test_set, set_id='test')        
 
         tain_val_test = tuple(_set for _set in [train_set, val_set, test_set] if _set)
 
@@ -113,18 +123,6 @@ class DataSet(object):
                 _set.check_set()
 
         return tain_val_test
-
-
-    def prepare_for_inference(self, 
-                              caseset_obj :CaseSet):
-        
-        if self.config.enable_mixer:
-            caseset_obj._scale_mixer(self.mixer_invariant_features_scaler)
-            caseset_obj._build_mixer_features(self.mixer_invariant_features_scaler)
-        
-        caseset_obj._transform_scale(self.features_scaler,None,None)
-
-        return caseset_obj
 
 
 if __name__ == '__main__':

@@ -15,10 +15,12 @@ class SetConfig(object):
                  trainset :Optional[List[str]]=None,
                  valset :Optional[List[str]]=None,
                  testset :Optional[List[str]]=None,
-                 features_scaler :Optional[str]='standard',
+                 features_scaler :Optional[str]='minmax',
                  labels_scaler :Optional[str]='standard',
+                 features_oev_scaler :Optional[str]='standard',
                  labels_oev_scaler :Optional[str]='standard',
                  mixer_invariant_features_scaler :Optional[str]='minmax',
+                 mixer_invariant_oev_features_scaler :Optional[str]='minmax',
                  custom_turb_dataset :Optional[str]=None,
                  tensor_features_oev :Optional[str]=None,
                  features_filter :Optional[List[str]]=None,
@@ -64,6 +66,10 @@ class SetConfig(object):
         ### applied to labels and tensor_features_linear
         self.labels_scaler = deepcopy(self.scalers_obj.get(labels_scaler)) 
         print(f'[WARNING] available scalers are keys from {self.scalers_obj} but got {labels_scaler}: no labels_scaler will be applied. You can pass a custom scalers_obj containing sklearn scalers with pass_scalers_obj arg.') if (labels_scaler and not self.labels_scaler) else ...
+        
+        ### aplied to oev feautres
+        self.features_oev_scaler = deepcopy(self.scalers_obj.get(features_oev_scaler))
+        print(f'[WARNING] available scalers are keys from {self.scalers_obj} but got {features_oev_scaler}: no features_oev_scaler will be applied. You can pass a custom scalers_obj containing sklearn scalers with pass_scalers_obj arg.') if (features_oev_scaler and not self.features_oev_scaler) else ...
 
         ### applied to eV labels and
         self.labels_oev_scaler = deepcopy(self.scalers_obj.get(labels_oev_scaler))
@@ -71,6 +77,9 @@ class SetConfig(object):
         
         self.mixer_invariant_features_scaler = deepcopy(self.scalers_obj.get(mixer_invariant_features_scaler))
         print(f'[WARNING] available scalers are keys from {self.scalers_obj} but got {mixer_invariant_features_scaler}: no mixer_invariant_features_scaler will be applied. You can pass a custom scalers_obj containing sklearn scalers with pass_scalers_obj arg.') if (mixer_invariant_features_scaler and not self.mixer_invariant_features_scaler) else ...
+
+        self.mixer_invariant_oev_features_scaler = deepcopy(self.scalers_obj.get(mixer_invariant_oev_features_scaler))
+        print(f'[WARNING] available scalers are keys from {self.scalers_obj} but got {mixer_invariant_oev_features_scaler}: no mixer_invariant_features_scaler will be applied. You can pass a custom scalers_obj containing sklearn scalers with pass_scalers_obj arg.') if (mixer_invariant_oev_features_scaler and not self.mixer_invariant_oev_features_scaler) else ...
 
         self.trainset = [[_case] for _case in self.ensure_list_instance(trainset)] if trainset else []
         self.valset = [[_case] for _case in self.ensure_list_instance(valset)] if valset else []
@@ -167,7 +176,7 @@ class SetConfig(object):
     def apply_log_no_signal_changes(features :np.array,
                                     debug :Optional[bool]=False):
         if not features.min() < 0 < features.max():
-            features = np.log(abs(features)+1)
+            features = np.log(np.abs(features)+1)
             if debug:
                 print('[transforms] applied log')
             
