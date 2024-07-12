@@ -16,28 +16,32 @@ import os
 class DataSet(object):
     def __init__(self,
                  cases :List[str]=None,
-                 set_config :SetConfig=None) -> None:
+                 set_config :Optional[SetConfig]=None) -> None:
         
-        if not isinstance(set_config, SetConfig):
+        if set_config and not isinstance(set_config, SetConfig):
             raise AssertionError(f'set_config must of instance {SetConfig}')
         
-        self.config = set_config
-        
-        self.cases = self.config.cases if  len(self.config.cases) > 1 else self.config.ensure_list_instance(cases)
+        if set_config:        
+            self.config = set_config
+            
+            self.cases = self.config.cases if  len(self.config.cases) > 1 else self.config.ensure_list_instance(cases)
 
-        self.features_scaler = self.config.features_scaler
-        self.labels_scaler = self.config.labels_scaler
-        self.features_oev_scaler = self.config.features_oev_scaler
-        self.labels_oev_scaler = self.config.labels_oev_scaler
-        self.mixer_invariant_features_scaler = self.config.mixer_invariant_features_scaler
-        self.mixer_invariant_oev_features_scaler = self.config.mixer_invariant_oev_features_scaler
-        
-        self.scaler_objs = [key for key, value in self.__dict__.items() if ('scaler' in key and value)]
+            self.features_scaler = self.config.features_scaler
+            self.labels_scaler = self.config.labels_scaler
+            self.features_oev_scaler = self.config.features_oev_scaler
+            self.labels_oev_scaler = self.config.labels_oev_scaler
+            self.mixer_invariant_features_scaler = self.config.mixer_invariant_features_scaler
+            self.mixer_invariant_oev_features_scaler = self.config.mixer_invariant_oev_features_scaler
+            
+            self.scaler_objs = [key for key, value in self.__dict__.items() if ('scaler' in key and value)]
 
-        self.contents = [
-            CaseSet(case=case, set_config=self.config)
-            for case in tqdm(self.cases)
-        ]
+            self.contents = [
+                CaseSet(case=case, set_config=self.config)
+                for case in tqdm(self.cases)
+            ]
+        
+        else:
+            print('DataSet initialized empty')
 
 
     def check_set(self):
