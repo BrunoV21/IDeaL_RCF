@@ -10,7 +10,7 @@ import numpy as np
 
 class Evaluator(PlottingTools):
     def __init__(self, 
-                 sklearn_metrics_list :Optional[List],
+                 sklearn_metrics_list :Optional[List]=None,
                  exp_id :Optional[Path]=None,
                  img_folder :Optional[Path]=None) -> None: 
         
@@ -21,14 +21,23 @@ class Evaluator(PlottingTools):
                           caseset_obj :CaseSet,
                           show_plots :Optional[bool]=True):
         
-        print(f'[{caseset_obj.set_id or caseset_obj.case[0]}] metrics')
-        for metric in self.metrics:
-            print(f' > {metric.__name__}: {self.format_float(metric(caseset_obj.labels, caseset_obj.predictions))}')
+        if self.metrics:
+            print(f'[{caseset_obj.set_id or caseset_obj.case[0]}] metrics')
+            try:
+                bool(caseset_obj.predictions)
+                raise ValueError('Make sure to run inference before passing the caseset_obj')
+            except ValueError:
+                ...
 
+            for metric in self.metrics:
+                print(f' > {metric.__name__}: {self.format_float(metric(caseset_obj.labels, caseset_obj.predictions))}')
+        else:
+            print('[warning] you must pass a list of sklearn metrics when initiating to use this method.')
+        
         if show_plots:
             self.parity_plots(caseset_obj)
             self.plot_oev(caseset_obj)
-            self.plot_scalar(caseset_obj)
+            self.plot_anisotropy(caseset_obj)
             self.get_plots_error(caseset_obj, error_function=self.relative_error)
 
 
