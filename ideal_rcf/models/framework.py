@@ -524,7 +524,7 @@ class FrameWork(object):
             else :     
                 ax.set_ylim(0, 2*np.mean(metrics[pair_plot[1]].to_list()))
         
-        fig.show()
+        plt.show(block=False)
 
 
     def train_metrics(self):
