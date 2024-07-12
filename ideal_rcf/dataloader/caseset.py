@@ -198,11 +198,11 @@ class CaseSet(object):
     
     def _transform_features(self):
         ### must be applied after features_filter
-        print(f'[{self.set_id or self.case[0]}]')
+        print(f'[{self.set_id or self.case[0]}]') if self.config.debug else ...
         for i, feature in enumerate(self.config.features_filter):
             if feature in self.config.skip_features_transforms_for:
-                continue
-            print(f'[transforms] {feature}:')
+                continue            
+            print(f'[transforms] {feature}:') if self.config.debug else ...
             for transform in self.config.features_transforms:
                 self.features[:,i] = transform(self.features[:,i], self.config.debug)
 
