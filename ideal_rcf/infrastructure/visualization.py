@@ -53,7 +53,7 @@ class PlottingTools(object):
 
         assert n_cols == len(subplots_components), f'subplots_title arg shoudl have n_cols entry but got {len(subplots_components)}'
         
-        fig, axs = plt.subplots(n_rows, n_cols, figsize=(10*n_cols, 10*n_rows))
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(5*n_cols, 5*n_rows))
 
         x = np.arange(-1000, 1000)
         y = x
@@ -65,10 +65,10 @@ class PlottingTools(object):
             axs[j].set_xlim([min(caseset_obj.labels[:, j]), max(caseset_obj.labels[:, j])])
             axs[j].set_ylim([min(caseset_obj.predictions[:, j]), max(caseset_obj.predictions[:, j])])
 
-            axs[j].set_title(f'{component}', fontsize=40)
-            axs[j].set_xlabel('Labels', fontsize=40)
+            axs[j].set_title(f'{component}', fontsize=20)
+            axs[j].set_xlabel('Labels', fontsize=20)
             
-            axs[j].tick_params(axis = 'both', labelsize = 20)
+            axs[j].tick_params(axis = 'both', labelsize = 10)
             axs[j].text(
                 0.12, 
                 0.95, 
@@ -76,7 +76,7 @@ class PlottingTools(object):
                 horizontalalignment='center',
                 verticalalignment='center',
                 transform = axs[j].transAxes,
-                fontsize = 25
+                fontsize = 10
             )
 
             print(f' [{component}]')
@@ -84,13 +84,13 @@ class PlottingTools(object):
                 print(f'  > {metric.__name__}: {self.format_float(metric(caseset_obj.labels[:,j], caseset_obj.predictions[:,j]))}')
             
         if self.img_folder:
-            plt.savefig(os.path.join(self.img_foler, f'{caseset_obj.set_id or caseset_obj.case[0]}_parity_plots'))
+            plt.savefig(f"{self.img_foler}/{self.exp_id or ''}_{caseset_obj.set_id or caseset_obj.case[0]}_parity_plots")
 
         if self.exp_id:    
-            axs[0].set_ylabel(self.exp_id, fontsize=40)
+            axs[0].set_ylabel(self.exp_id, fontsize=20)
 
         plt.tight_layout()
-        fig.show()
+        plt.show(block=False)
 
 
     def extract_wall_surf(self,
@@ -115,7 +115,7 @@ class PlottingTools(object):
                  caseset_obj :CaseSet,
                  cmap_id:Optional[str]='coolwarm'):
         
-        fig = plt.figure(figsize=(10, 5))
+        fig = plt.figure(figsize=(7, 3), num=f"{self.exp_id or ''}_{caseset_obj.set_id or caseset_obj.case[0]}_oev")
         plt.subplots_adjust(hspace=0.5)
             
         x, y = self.extract_wall_surf(caseset_obj)
@@ -169,10 +169,10 @@ class PlottingTools(object):
         cbar.ax.tick_params(labelsize=10)
 
         fig.tight_layout()
-        fig.show()
+        plt.show(block=False)
 
         if self.img_folder:
-            plt.savefig(os.path.join(self.img_foler, f'{caseset_obj.set_id or caseset_obj.case[0]}_oev'))
+            plt.savefig(f"{self.img_foler}/{self.exp_id or ''}_{caseset_obj.set_id or caseset_obj.case[0]}_oev")
 
 
     def get_plots_error(self,
@@ -180,7 +180,7 @@ class PlottingTools(object):
                         error_function,
                         cmap_id:Optional[str]='cool'):
         
-        fig = plt.figure(figsize=(10, 5))
+        fig = plt.figure(figsize=(7, 3), num=f"{self.exp_id or ''}_{caseset_obj.set_id or caseset_obj.case[0]}_{error_function.__name__}")
         plt.subplots_adjust(hspace=0.5)
             
         x, y = self.extract_wall_surf(caseset_obj)
@@ -231,18 +231,18 @@ class PlottingTools(object):
         )
         cbar.ax.tick_params(labelsize=10)
         fig.tight_layout()   
-        fig.show()
+        plt.show(block=False)
         
         if self.img_folder:
-            plt.savefig(os.path.join(self.img_foler, f'{caseset_obj.set_id or caseset_obj.case[0]}_{error_function.__name__}'))
+            plt.savefig(f"{self.img_foler}/{self.exp_id or ''}_{caseset_obj.set_id or caseset_obj.case[0]}_{error_function.__name__}")
 
 
-    def plot_scalar(self,
-                    caseset_obj :CaseSet,
-                    scalar_name :str='anisotropy',
-                    attr_list :Optional[List[str]]=['predictions','labels'],
-                    subplots_components :Optional[List[str]]=['a_11','a_12','a_22','a_33'],
-                    cmap_id :Optional[str]='coolwarm'):
+    def plot_anisotropy(self,
+                        caseset_obj :CaseSet,
+                        scalar_name :str='anisotropy',
+                        attr_list :Optional[List[str]]=['predictions','labels'],
+                        subplots_components :Optional[List[str]]=['a_11','a_12','a_22','a_33'],
+                        cmap_id :Optional[str]='coolwarm'):
     
         try:
             bool(caseset_obj.labels)
@@ -260,28 +260,36 @@ class PlottingTools(object):
 
         assert n_cols == len(subplots_components), f'subplots_title arg shoudl have n_cols entry but got {len(subplots_components)}'
         
-        fig = plt.figure(figsize=(15*n_cols, 10*n_rows))
+        fig = plt.figure(figsize=(7*n_cols, 5*n_rows), num=f"{self.exp_id or ''}_{caseset_obj.set_id or caseset_obj.case[0]}_{scalar_name}")
 
+        fig.suptitle(f'{caseset_obj.set_id or caseset_obj.case[0]}', fontsize=20)
+        
         x, y = self.extract_wall_surf(caseset_obj)
 
         cmap = colormaps[cmap_id]
 
-        for i in range(0, n_cols+1, n_cols):
+        n_cols_list = [i*n_cols for i in range(n_rows)]
+
+        for i in n_cols_list:
             for j, component in enumerate(subplots_components):
-                vmax = 1.2*caseset_obj.labels[:,j].max()
-                vmin = 1.2*caseset_obj.labels[:,j].min()
+                try:
+                    vmax = 1.2*caseset_obj.labels[:,j].max()
+                    vmin = 1.2*caseset_obj.labels[:,j].min()
+                except TypeError:
+                    vmax = 1.2*caseset_obj.predictions[:,j].max()
+                    vmin = 1.2*caseset_obj.predictions[:,j].min()
                 norm = Normalize(vmin=vmin, vmax=vmax)
                 levels = self.create_levels(vmin, vmax)
                 ax = plt.subplot(n_rows, n_cols, j+i+1)
                 if i == 0:
                     scalar = caseset_obj.predictions[:,j]
-                    ax.set_title(component, fontsize=60)
+                    ax.set_title(component, fontsize=20)
                     if j == 0 and self.exp_id:
-                        ax.set_ylabel(self.exp_id, fontsize=60, rotation=90, labelpad=8)
+                        ax.set_ylabel(self.exp_id, fontsize=20, rotation=90, labelpad=8)
                 else:
                     scalar = caseset_obj.labels[:,j]
                     if j == 0:
-                        ax.set_ylabel('Labels', fontsize=60, rotation=90, labelpad=8)
+                        ax.set_ylabel('Labels', fontsize=20, rotation=90, labelpad=8)
 
                 cont = ax.tricontourf(
                     caseset_obj.Cx[:,0], 
@@ -304,7 +312,7 @@ class PlottingTools(object):
                 
                 ax.set_aspect(1.3)
 
-                if i == n_cols:
+                if i == n_cols_list[-1]:
                     ### Add a colorbar to the plot
                     if caseset_obj.case[0][:4] == 'PHLL':
                         cbar = plt.colorbar(
@@ -323,10 +331,10 @@ class PlottingTools(object):
                             shrink=.8, pad=0.1, 
                             ticks = [vmin, vmax])
                         
-                    cbar.ax.tick_params(labelsize=30)
+                    cbar.ax.tick_params(labelsize=10)
                 
         fig.tight_layout()   
-        fig.show()
+        plt.show(block=False)
 
         if self.img_folder:
-            plt.savefig(os.path.join(self.img_foler, f'{caseset_obj.set_id or caseset_obj.case[0]}_{scalar_name}'))
+            plt.savefig(f"{self.img_foler}/{self.exp_id or ''}_{caseset_obj.set_id or caseset_obj.case[0]}_{scalar_name}")
