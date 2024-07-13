@@ -19,7 +19,8 @@ class Evaluator(PlottingTools):
 
     def calculate_metrics(self,
                           caseset_obj :CaseSet,
-                          show_plots :Optional[bool]=True):
+                          show_plots :Optional[bool]=True,
+                          dump_metrics :Optional[bool]=False):
         
         if self.metrics:
             print(f'[{caseset_obj.set_id or caseset_obj.case[0]}] metrics')
@@ -29,8 +30,11 @@ class Evaluator(PlottingTools):
             except ValueError:
                 ...
 
+            results = []
             for metric in self.metrics:
-                print(f' > {metric.__name__}: {self.format_float(metric(caseset_obj.labels, caseset_obj.predictions))}')
+                result = metric(caseset_obj.labels, caseset_obj.predictions)
+                print(f' > {metric.__name__}: {self.format_float(result)}')
+                results.append(result) if dump_metrics else ...
         else:
             print('[warning] you must pass a list of sklearn metrics when initiating to use this method.')
         
@@ -40,6 +44,7 @@ class Evaluator(PlottingTools):
             self.plot_anisotropy(caseset_obj)
             self.get_plots_error(caseset_obj, error_function=self.relative_error)
 
+        return results if dump_metrics else None
 
     def relative_error(self,
                       caseset_obj :CaseSet):
