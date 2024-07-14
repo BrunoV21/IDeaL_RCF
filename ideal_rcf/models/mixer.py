@@ -9,6 +9,9 @@ import tensorflow as tf
 
 
 class MixerResBlock(object):
+    """
+    based on [tsmixer](https://github.com/google-research/google-research/blob/master/tsmixer/tsmixer_basic/models/tsmixer.py)
+    """
     def __init__(self,
                  mixer_config :MixerConfig) -> None:
         

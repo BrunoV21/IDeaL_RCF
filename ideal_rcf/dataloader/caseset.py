@@ -6,6 +6,71 @@ from typing import List, Union, Optional
 import numpy as np
 
 class CaseSet(object):
+    """
+    A class for managing and processing a set of cases with various features and configurations.
+
+    Methods
+    -------
+    __init__(case: str, set_config: SetConfig, set_id: Optional[str]=None, initialize_empty: Optional[bool]=False) -> None
+        Initializes the CaseSet with the provided case, configuration, and optional settings.
+    
+    loadLabels(field: List[str])
+        Loads labels for the specified field from numpy files.
+    
+    loadCombinedArray(field: List[str])
+        Loads combined array data for the specified field from numpy files.
+    
+    loadCollumnStackFeatures(fields: List[str])
+        Loads and stacks features for the specified fields.
+    
+    shuffle()
+        Shuffles the features and labels.
+    
+    _filter_features()
+        Filters the features based on the configuration.
+    
+    get_outliers_index()
+        Identifies and returns the indices of outliers in the features.
+    
+    _remove_outliers()
+        Removes outliers from the features and labels.
+    
+    _transform_features()
+        Applies transformations to the features based on the configuration.
+    
+    _fit_scaler_oev(features_oev_scaler: Union[StandardScaler, MinMaxScaler, None], labels_oev_scaler: Union[StandardScaler, MinMaxScaler, None])
+        Fits scalers to the features and labels for OEV (Operational Error Validation).
+    
+    _scale_oev(features_oev_scaler: Union[StandardScaler, MinMaxScaler, None], labels_oev_scaler: Union[StandardScaler, MinMaxScaler, None])
+        Scales the features and labels for OEV.
+    
+    _fit_mixer_scaler(mixer_invariant_features_scaler: Union[StandardScaler, MinMaxScaler, None])
+        Fits a scaler to the mixer invariant features.
+    
+    _fit_scaler(features_scaler: Union[StandardScaler, MinMaxScaler, None], labels_scaler: Union[StandardScaler, MinMaxScaler, None], mixer_invariant_features_scaler: Union[StandardScaler, MinMaxScaler, None])
+        Fits scalers to the features and labels, and optionally the mixer invariant features.
+    
+    _scale(features_scaler: Union[StandardScaler, MinMaxScaler, None], labels_scaler: Union[StandardScaler, MinMaxScaler, None])
+        Scales the features and labels.
+    
+    _build_mixer_features(mixer_invariant_features_scaler: Union[StandardScaler, MinMaxScaler, None])
+        Builds mixer features augmented with spatial mixing coordinates.
+    
+    _ensure_oev_shapes()
+        Ensures that the shapes of the labels and tensor features for OEV are compatible.
+    
+    _export_for_stack()
+        Exports the case set data for stacking.
+    
+    _import_from_copy(*args)
+        Imports data from a copy for various attributes.
+    
+    _stack(*args)
+        Stacks a new case's data into the current case set.
+    
+    check_set()
+        Checks the consistency and dimensions of the set attributes.
+    """
     def __init__(self,
                  case :str,
                  set_config :SetConfig,
@@ -62,7 +127,10 @@ class CaseSet(object):
 
     def loadLabels(self, 
                    field :List[str]):
-        
+        """
+        Method based on code provided by McConkey *et al.* in [A curated dataset for data-driven
+        turbulence modelling](https://doi.org/10.34740/kaggle/dsv/2637500)
+        """        
         if not field:
             return None
         try:
@@ -82,7 +150,10 @@ class CaseSet(object):
 
     def loadCombinedArray(self,
                           field :List[str]):
-        
+        """
+        Method based on code provided by McConkey *et al.* in [A curated dataset for data-driven
+        turbulence modelling](https://doi.org/10.34740/kaggle/dsv/2637500)
+        """        
         if not field:
             return None
         
@@ -156,6 +227,10 @@ class CaseSet(object):
 
 
     def get_outliers_index(self):
+        """
+        Method based on code provided by McConkey *et al.* in [A curated dataset for data-driven
+        turbulence modelling](https://doi.org/10.34740/kaggle/dsv/2637500)
+        """ 
         stdev = np.std(self.features,axis=0)
         means = np.mean(self.features,axis=0)
         ind_drop = np.empty(0)
@@ -172,8 +247,11 @@ class CaseSet(object):
 
 
     def _remove_outliers(self):
+        """
+        Method based on code provided by McConkey *et al.* in [A curated dataset for data-driven
+        turbulence modelling](https://doi.org/10.34740/kaggle/dsv/2637500)
+        """ 
         outliers_index = self.get_outliers_index()
-
         if self.config.debug:
             print(f'[{self.set_id or self.case[0]}] Found {len(outliers_index)} outliers in {self.config.features} feature set')
 

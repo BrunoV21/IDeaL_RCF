@@ -21,6 +21,60 @@ from copy import deepcopy
 import os
 
 class FrameWork(object):
+    """
+    A class for managing and training machine learning models based on provided configurations.
+
+    Parameters
+    ----------
+    model_config : ModelConfig
+        Configuration object for the model setup.
+    _id : Optional[str], optional
+        Identifier for the framework instance.
+
+    Methods
+    -------
+    __init__(model_config: ModelConfig, _id: Optional[str]=None)
+        Initializes the FrameWork with the provided model configuration and ID.
+    
+    build()
+        Constructs the models based on the configuration.
+    
+    compile_models()
+        Compiles the models with the specified loss, optimizer, and metrics.
+    
+    train(dataset_obj: DataSet, train_caseset: CaseSet, val_caseset: CaseSet=None, use_pretrained_oevnn: Optional[bool]=False, dry_run: Optional[bool]=False)
+        Trains the models on the provided dataset and case sets.
+    
+    extract_oev()
+        Extracts and redefines the oevnn model.
+    
+    regress_nl_labels(caseset: CaseSet)
+        Regresses non-linear labels using the provided case set.
+    
+    calculate_nl_labels(dataset_obj: DataSet, caseset: CaseSet)
+        Calculates non-linear labels using the provided dataset and case set.
+    
+    predict_oev(dataset_obj: DataSet, caseset: CaseSet, scaled_features: Optional[bool]=False, dump_predictions: Optional[bool]=True)
+        Predicts OEV values for the provided case set.
+    
+    predict_evtbnn(dataset_obj: DataSet, caseset: CaseSet, model, force_realizability: bool, scaled_features: Optional[bool]=False)
+        Predicts EVTBNN values for the provided case set using the specified model.
+    
+    inference(dataset_obj: DataSet, caseset: CaseSet, force_realizability: Optional[bool]=True, dump_predictions: Optional[bool]=False)
+        Performs inference on the provided case set.
+    
+    plot_metrics(model_type: str, metrics: pl.DataFrame)
+        Plots the training metrics for the specified model type.
+    
+    train_metrics()
+        Plots training metrics for all models.
+    
+    load_from_dir(dir_path: Path)
+        Loads models from the specified directory.
+    
+    dump_to_dir(dir_path: Path)
+        Dumps models to the specified directory.
+    """
     def __init__(self,
                  model_config :ModelConfig,
                  _id :Optional[str]=None):
@@ -39,7 +93,36 @@ class FrameWork(object):
 
 
     def build(self):
+        """
+        Build the neural network models based on the provided configuration.
 
+        This method constructs either a TBNN (Tensor Basis Neural Network), 
+        eVTBNN (effective Viscosity Tensor Basis Neural Network), or oEVNN (optimal Eddy Viscosity Tensor Basis Neural Network)
+        model depending on the configuration settings provided in `self.config`.
+
+        The method sets up the input layers, constructs the model architectures,
+        and saves the constructed models in `self.models`.
+
+        Inputs:
+        - `input_features_layer`: Layer for general input features.
+        - `input_tensor_features_layer`: Layer for tensor input features.
+        - Optionally, if eVTBNN is configured:
+            - `input_tensor_features_linear_layer`: Layer for linear tensor input features.
+        - Optionally, if oEVNN is configured:
+            - `input_tensor_features_oev_linear_layer`: Layer for output enriched vector input features.
+
+        Outputs:
+        - `merged_output`: The concatenated output of different components of the model,
+        with specific manipulations such as additions and negations applied to individual elements.
+        
+        Models:
+        - `tbnn`: Tensor Basis Neural Network model.
+        - Optionally, if EVTBNN is configured:
+            - `evtbnn`: effective Viscosity Tensor Basis Neural Network model.
+        - Optionally, if OEvNN is configured:
+            - `oevnn`: optimal Eddy Viscosity Tensor Basis Neural Network model.
+            - `nltbnn`: Nonlinear Tensor Basis Neural Network model (derived from EVTBNN).
+        """
         input_features_layer = Input(
             shape=(self.config.features_input_shape) if type(self.config.features_input_shape)==int else self.config.features_input_shape,
             name='features_input_layer'
@@ -454,7 +537,26 @@ class FrameWork(object):
                   caseset :CaseSet,
                   force_realizability :Optional[bool]=True,
                   dump_predictions :Optional[bool]=False):
-       
+        """
+        Perform inference using the stored neural network models on the provided dataset and caseset.
+
+        This method iterates over the models stored in `self.models` and performs predictions or regressions
+        based on the model type and configuration settings.
+
+        Args:
+        - `dataset_obj`: DataSet object containing input data for inference.
+        - `caseset`: CaseSet object containing cases on which predictions or regressions are to be performed.
+        - `force_realizability`: Optional boolean flag indicating whether to force realizability of predictions.
+        - `dump_predictions`: Optional boolean flag indicating whether to dump predictions.
+
+        Returns:
+        - If `dump_predictions` is True, returns predictions stored in `caseset.predictions_oev` or `caseset.predictions`
+        depending on the configuration.
+        - If `dump_predictions` is False, returns None.
+
+        Raises:
+        - ValueError: If predictions or labels are missing or invalid during operations.
+        """       
         for model_type, model in self.models.__dict__.items():
             if model_type == 'oevnn':
                 try:

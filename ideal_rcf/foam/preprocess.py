@@ -5,14 +5,41 @@ from pathlib import Path
 import os
 
 class FoamParser(object):
-    '''
-    2 utilizatons:
-    1) Receives an anisotropy field (pre realizable) and extracts the eV from avg eV from both folds
-       Outputs the NL part by substractin to a the eV*Shat term and writes it to semi_impliciti
-       
-       
-    2) Receives the realizable anisotropy field and writes it to explicit
-    '''
+    """
+    A class for generating OpenFOAM input files based on predictions from a CaseSet object.
+
+    Attributes:
+    - `caseset`: Instance of CaseSet containing the data and predictions.
+    - `iterations`: Dictionary defining default iteration counts for different cases.
+    - `boundaries_dict`: Dictionary defining default boundary conditions for different cases.
+    - `fixed_value_dict`: Dictionary defining default fixed values for different fields.
+
+    Methods:
+    - `__init__(caseset, pass_iterations_dict=None, pass_boundaries_dict=None, pass_fixed_value_dict=None)`: 
+      Initializes the FoamParser instance with a CaseSet and optional dictionaries to override defaults.
+
+    - `foam_header(field_type, iterations, field)`: 
+      Generates the header for an OpenFOAM input file.
+
+    - `create_boundaries(_id)`: 
+      Generates boundary conditions section for an OpenFOAM input file based on the CaseSet.
+
+    - `create_anisotropy()`: 
+      Generates anisotropy data for OpenFOAM input files.
+
+    - `create_viscosity(implicit=True)`: 
+      Generates viscosity data for OpenFOAM input files.
+
+    - `dump_predictions(dir_path)`: 
+      Dumps generated OpenFOAM input files (anisotropy and viscosity) based on predictions to the specified directory.
+
+    Example Usage:
+    ```python
+    caseset = CaseSet(...)
+    parser = FoamParser(caseset)
+    parser.dump_predictions('/path/to/directory')
+    ```
+    """
     def __init__(self, 
                  caseset :CaseSet,
                  pass_iterations_dict :Optional[Dict]=None,

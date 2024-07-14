@@ -14,6 +14,26 @@ import os
 
 
 class CrossValConfig(object):
+    """
+    Implements a cross-validation process based on given configurations and manages multiple folds for evaluation.
+
+    Attributes:
+    - `n_folds`: Number of folds for cross-validation.
+    - `folds_config`: List of dictionaries specifying training and validation sets for each fold.
+    - `use_best_n_folds`: Optional integer specifying the number of best folds to use for evaluation.
+    - `cost_metrics`: Optional list of metrics to use as cost functions for selecting best folds.
+    - `debug`: Optional boolean flag for debugging mode.
+
+    Methods:
+    - `update_base_fold_config(fold_config)`: Updates base set and model configurations for a specific fold.
+    - `start()`: Initializes datasets and models for each fold based on `folds_config`.
+    - `execute(show_plots=False)`: Executes cross-validation, trains models, and calculates metrics.
+    - `indexes_of_n_lowest(arr)`: Returns the indices of the `n` lowest values in the array `arr`.
+    - `get_best_n()`: Updates `best_folds` with indices of best performing folds based on evaluation metrics.
+    - `inference(caseset)`: Performs inference using the best performing folds and updates predictions in `caseset`.
+    - `dump_all(dir_path)`: Dumps scalers and model configurations from each fold to `dir_path`.
+    - `load_all(dir_path)`: Loads scalers and model configurations from `dir_path` for each fold.
+    """
     def __init__(self,
                  n_folds :int,
                  folds_config :List[Dict[str,Union[str,int]]],
@@ -21,42 +41,39 @@ class CrossValConfig(object):
                  cost_metrics :Optional[List]=None,
                  debug :Optional[bool]=False) -> None:
         """
-        ```json
-        example_folds_config =[
-            {
-                'set':{
-                    'trainset': [
-                        'PHLL_case_0p5',
-                        'PHLL_case_0p8',
-                        'PHLL_case_1p5'
-                    ],
-                    'valset': [
-                        'PHLL_case_1p0',
-                    ],
-                },
-                'model':{
-                    'random_seed': 42
-                }
-            },
-            {
-                'set':{
-                    'trainset': [
-                        'PHLL_case_0p5',
-                        'PHLL_case_1p0',
-                        'PHLL_case_1p5'
-                    ],
-                    'valset': [
-                        'PHLL_case_0p8',
-                    ],
-                },
-                'model':{
-                    'random_seed': 84
-                }
-            },
-        ]
-        ```
+        Initializes a CrossVal object with given configurations.
+
+                Args:
+                - `n_folds`: Number of folds for cross-validation.
+                - `folds_config`: List of dictionaries specifying training and validation sets for each fold.
+                - `use_best_n_folds`: Optional integer specifying the number of best folds to use for evaluation.
+                - `cost_metrics`: Optional list of metrics to use as cost functions for selecting best folds.
+                - `debug`: Optional boolean flag for debugging mode.
+
+                Example `folds_config`:
+                ```json
+                example_folds_config = [
+                    {
+                        'set': {
+                            'trainset': ['PHLL_case_0p5', 'PHLL_case_0p8', 'PHLL_case_1p5'],
+                            'valset': ['PHLL_case_1p0'],
+                        },
+                        'model': {
+                            'random_seed': 42
+                        }
+                    },
+                    {
+                        'set': {
+                            'trainset': ['PHLL_case_0p5', 'PHLL_case_1p0', 'PHLL_case_1p5'],
+                            'valset': ['PHLL_case_0p8'],
+                        },
+                        'model': {
+                            'random_seed': 84
+                        }
+                    },
+                ]
+                ```
         """
-        
         self.n_folds = n_folds
         self.folds_config = folds_config
         assert self.n_folds == len(folds_config), f'folds_config should have lenght n_folds but got {len(folds_config)} and {self.folds_config}'
