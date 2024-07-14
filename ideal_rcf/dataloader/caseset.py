@@ -1,39 +1,63 @@
-try:
-    from dataloader.config import config
+from ideal_rcf.dataloader.config import SetConfig
 
-except ModuleNotFoundError:
-    from config import config
-
-from typing import List
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.utils import shuffle
+from typing import List, Union, Optional
 import numpy as np
 
 class CaseSet(object):
     def __init__(self,
                  case :str,
-                 set_config :config) -> None:
+                 set_config :SetConfig,
+                 set_id :Optional[str]=None,
+                 initialize_empty :Optional[bool]=False) -> None:
         
-        if not isinstance(set_config, config):
-            raise AssertionError(f'set_config must of instance {config()}')
+        if not isinstance(set_config, SetConfig):
+            raise AssertionError(f'[config_error] set_config must be of instance {SetConfig()}')
         
         self.config = set_config
 
+        self.set_id = set_id
+
         self.case = self.config.ensure_list_instance(case)
         
-        self.features = self.filter_features(
-            self.loadCollumnStackFeatures(self.config.features)
-        )
+        self.features = self.loadCollumnStackFeatures(self.config.features)
+
         self.tensor_features = self.loadCombinedArray(self.config.tensor_features)
         self.tensor_features_linear = self.loadCombinedArray(self.config.tensor_features_linear)
         self.labels = self.loadLabels(self.config.labels)
 
-        self.tensor_features_eV = self.loadCombinedArray(self.config.tensor_features_eV)
-        self.labels_eV = self.loadLabels(self.config.labels_eV)
+        self.tensor_features_oev = self.loadCombinedArray(self.config.tensor_features_oev)
+        self._ensure_oev_shapes()
 
         self.Cx = self.loadCombinedArray(self.config.Cx)
-        self.Cx = self.loadCombinedArray(self.config.Cy)
+        self.Cy = self.loadCombinedArray(self.config.Cy)
 
-        self.u_velocity_label = self.loadLabels(self.config.u_velocity_label)
-        self.v_velocity_label = self.loadLabels(self.config.v_velocity_label)
+        self.u = self.loadLabels(self.config.u)
+        self.v = self.loadLabels(self.config.v)
+
+        self.predictions = None
+        self.predictions_oev = None
+        self.labels_compiled = False
+
+        if not initialize_empty:
+            if self.config.features_filter and self.config.features_filter != self.config.all_features:
+                self._filter_features()
+
+            if self.config.remove_outliers_threshold:
+                self._remove_outliers()
+
+            if self.config.enable_mixer:
+                try:
+                    self.augmented_spatial_mixing_coords = np.hstack(self.config.mixer_propertires_obj[self.case[0][:4]](self.Cx, self.Cy, self.case[0]))
+
+                except KeyError:
+                    raise KeyError(f'[config_error] available mixer_properties_obj are {self.config.mixer_propertires_obj}. You can pass a new obj with arg pass_mixer_propertires_obj')
+            else:
+                self.augmented_spatial_mixing_coords = None
+            
+            if self.config.debug:
+                self.check_set()
 
 
     def loadLabels(self, 
@@ -50,8 +74,12 @@ class CaseSet(object):
         except FileNotFoundError:
             data = self.loadCombinedArray(field)
 
+        if len(data.shape) == 1:
+            data = data.reshape((-1, 1))
+
         return data
-    
+
+
     def loadCombinedArray(self,
                           field :List[str]):
         
@@ -68,11 +96,14 @@ class CaseSet(object):
             data = np.concatenate([
                 np.load(f'{self.config.dataset_path}/{self.config.turb_dataset}/{self.config.turb_dataset}_{case}_{field}.npy')
                 for case in self.case
-            ])  
+            ])
+
+        if len(data.shape) == 1:
+            data = data.reshape((-1, 1))
 
         return data
-        
-    
+
+
     def loadCollumnStackFeatures(self,
                                  fields :List[str]):
         if not fields:
@@ -86,34 +117,270 @@ class CaseSet(object):
                 features = np.column_stack((features, data))
 
         return features
-    
-    
-    def filter_features(self, 
-                        features :np.array):
-    
-        if self.config.features_filter:
-            indexes_union = self.filtered_features_indexes()
-            features = features[:, indexes_union]
+
+
+    def shuffle(self):
+            (
+                self.features,
+                self.tensor_features,
+                self.tensor_features_linear,
+                self.labels,
+                self.tensor_features_oev,
+                self.Cx,
+                self.Cy,
+                self.u,
+                self.v,
+                # self.augmented_spatial_mixing_coords
+            ) = shuffle(
+                self.features,
+                self.tensor_features,
+                self.tensor_features_linear,
+                self.labels,
+                self.tensor_features_oev,
+                self.Cx,
+                self.Cy,
+                self.u,
+                self.v,
+                # self.augmented_spatial_mixing_coords,
+                random_state=self.config.random_seed
+            )
+
+
+    def _filter_features(self,):
+        indexes_union = [self.config.all_features.index(feature) for feature in self.config.features_filter]
+        if self.config.debug:
+            assert len(indexes_union) == len(self.config.features_filter)
+            print(f'[{self.set_id or self.case[0]}] sucessfuly filtered features {self.config.features} to {self.config.features_filter}')
+
+        self.features = self.features[:, indexes_union]
+
+
+    def get_outliers_index(self):
+        stdev = np.std(self.features,axis=0)
+        means = np.mean(self.features,axis=0)
+        ind_drop = np.empty(0)
+        for i in range(len(self.features[0,:])):
+            ind_drop = np.concatenate(
+                (
+                    ind_drop,np.where(
+                        (self.features[:,i]>means[i]+self.config.remove_outliers_threshold*stdev[i]) | (self.features[:,i]<means[i]-self.config.remove_outliers_threshold*stdev[i])
+                    )[0]
+                )
+            )
+
+        return np.unique(ind_drop.astype(int))
+
+
+    def _remove_outliers(self):
+        outliers_index = self.get_outliers_index()
+
+        if self.config.debug:
+            print(f'[{self.set_id or self.case[0]}] Found {len(outliers_index)} outliers in {self.config.features} feature set')
+
+        self.features = np.delete(self.features, outliers_index, axis=0)
+        self.tensor_features = np.delete(self.tensor_features, outliers_index, axis=0)
+        self.tensor_features_linear = np.delete(self.tensor_features_linear, outliers_index, axis=0) if self.config.tensor_features_linear else None
+        self.labels = np.delete(self.labels, outliers_index, axis=0)
         
-        return features
+        self.tensor_features_oev = np.delete(self.tensor_features_oev, outliers_index, axis=0) if self.config.tensor_features_oev else None
+        
+        self.Cx = np.delete(self.Cx, outliers_index, axis=0)
+        self.Cy = np.delete(self.Cy, outliers_index, axis=0)
+
+        self.u = np.delete(self.u, outliers_index, axis=0)
+        self.v = np.delete(self.v, outliers_index, axis=0)
+
+    
+    def _transform_features(self):
+        ### must be applied after features_filter
+        print(f'[{self.set_id or self.case[0]}]') if self.config.debug else ...
+        for i, feature in enumerate(self.config.features_filter):
+            if feature in self.config.skip_features_transforms_for:
+                continue            
+            print(f'[transforms] {feature}:') if self.config.debug else ...
+            for transform in self.config.features_transforms:
+                self.features[:,i] = transform(self.features[:,i], self.config.debug)
+
+
+    def _fit_scaler_oev(self,
+                        features_oev_scaler :Union[StandardScaler, MinMaxScaler, None],
+                        labels_oev_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        features_oev_scaler.fit(self.features) if features_oev_scaler else ...
+        try: 
+            bool(self.tensor_features_oev);
+        
+        except ValueError:         
+            labels_oev_scaler.fit(self.labels) if labels_oev_scaler else ...
+
+        return features_oev_scaler, labels_oev_scaler
+
+
+    def _scale_oev(self,
+                   features_oev_scaler :Union[StandardScaler, MinMaxScaler, None],
+                   labels_oev_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        self.features = features_oev_scaler.transform(self.features) if features_oev_scaler else self.features
+
+        try: 
+           bool(self.tensor_features_oev);
+        
+        except ValueError:
+            try:
+                bool(self.labels);
+            except ValueError:
+                self.labels = labels_oev_scaler.transform(self.labels) if labels_oev_scaler else self.labels
+            self.tensor_features_oev = labels_oev_scaler.transform(self.tensor_features_oev) if labels_oev_scaler else self.tensor_features_oev
+
+        # return [scaled_features, scaled_tensor_features_oev], scaled_labels
+
+
+    def _fit_mixer_scaler(self,
+                          mixer_invariant_features_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        mixer_invariant_features_scaler.fit(self.features) if mixer_invariant_features_scaler else ...
+
+        if self.config.debug:
+            print(f'[{self.set_id or self.case[0]}] [mixer_info] fitted {mixer_invariant_features_scaler}')
+
+        return mixer_invariant_features_scaler  
+
+
+    def _fit_scaler(self,
+                    features_scaler :Union[StandardScaler, MinMaxScaler, None],
+                    labels_scaler :Union[StandardScaler, MinMaxScaler, None],
+                    mixer_invariant_features_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        features_scaler.fit(self.features) if features_scaler else ...
+        labels_scaler.fit(self.labels) if labels_scaler else ...
+        mixer_invariant_features_scaler.fit(self.features) if mixer_invariant_features_scaler else ...
+        
+        if self.config.debug:
+            applied_scalers = [
+                scaler for scaler in [features_scaler, labels_scaler, mixer_invariant_features_scaler] 
+                if scaler
+            ]
+            print(f'[{self.set_id or self.case[0]}] fitted scalers {applied_scalers}')
+
+        return features_scaler, labels_scaler, mixer_invariant_features_scaler
+
+
+    def _scale(self,
+               features_scaler :Union[StandardScaler, MinMaxScaler, None],
+               labels_scaler :Union[StandardScaler, MinMaxScaler, None]):
+        
+        self.features = features_scaler.transform(self.features) if features_scaler and not self.config.enable_mixer else self.features
+        try:
+            bool(self.labels);
+        except ValueError:
+            self.labels = labels_scaler.transform(self.labels) if labels_scaler else self.labels
+
+
+    def _build_mixer_features(self,
+                              mixer_invariant_features_scaler :Union[StandardScaler, MinMaxScaler, None]):
        
-    
-    def filtered_features_indexes(self):
+        mixer_features = np.array(
+            [
+                [
+                    [
+                        0 for iii in range(3) ### 1 + 2 dimenions -> features Cx, Cy 
+                    ] for ii in range(self.features.shape[1])
+                ] for i in range(self.features.shape[0])
+            ], dtype= np.float32
+        )
+        
+        for i in range(self.features.shape[0]):           
+            mixer_features[i,:,0] = mixer_invariant_features_scaler.transform(self.features[i].reshape(1,-1))[0] if mixer_invariant_features_scaler else self.features[i]
+            mixer_features[i,:,1:] = np.tile(self.augmented_spatial_mixing_coords[i], (self.features.shape[1],1))
 
-        indexes = []
+        self.features = mixer_features
 
-        for feature in self.config.features_filter:
-            if feature[0] == 'I':
-                if feature[1] == '1':
-                    indexes.append(int(feature[3:])-1)
-                if feature[1] == '2':
-                    indexes.append(int(feature[3:])+19) 
-            else:
-                indexes.append(int(feature[-1])+39)
-                
-        return indexes 
+        if self.config.debug:
+            print(f'[{self.set_id or self.case[0]}] [mixer_info] building mixer features augmentend with spatial mixing with new shape: {self.features.shape}')
+
+
+    def _ensure_oev_shapes(self):
+        if bool(self.config.labels) and bool(self.config.tensor_features_oev):
+            if self.config.tensor_features_oev:
+                tensor_shape = self.tensor_features_oev.shape[1]
+                if self.labels.shape[1] > tensor_shape:
+                    if self.config.debug:
+                        print('')
+                    self.labels = self.labels[:,:tensor_shape]
+
+                elif self.labels_oev.shape[1] < tensor_shape:
+                    raise ValueError(f'[{self.set_id or self.case[0]}] Config_Error: labels ({self.config.labels}) and tensor_features_oev ({self.config.tensor_features_oev} must have same dim 1 but have ({self.labels.shape[1] }) and ({tensor_shape})')
+
+        # else:
+        #     raise AssertionError(f'[{self.set_id or self.case[0]}] Config_Error: labels ({self.config.labels}) and tensor_features_oev ({self.config.tensor_features_oev} must be passed simultaneously)')
+
+
+    def _export_for_stack(self):
+        return (
+            self.case,
+            self.features,
+            self.tensor_features,
+            self.tensor_features_linear,
+            self.labels,
+            self.tensor_features_oev,
+            # self.labels_oev,
+            self.Cx,
+            self.Cy,
+            self.u,
+            self.v,
+            self.augmented_spatial_mixing_coords
+        )
+
+
+    def _import_from_copy(self,
+                          *args):
     
-    
+        for arg, arg_value in zip(
+            [
+                'features',
+                'tensor_features',
+                'tensor_features_linear',
+                'labels',
+                'tensor_features_oev',
+                'Cx',
+                'Cy',
+                'u',
+                'v',
+                'augmented_spatial_mixing_coords',
+            ],
+            args[1:]
+        ):
+            setattr(self, arg, arg_value)
+
+
+    def _stack(self, *args):
+
+        self.case.append(args[0])
+        self.case = [_case if isinstance(_case, list) else [_case] for _case in self.case]
+        self.case = sum(self.case, [])
+
+        for arg, arg_value in zip(
+            [
+                'features',
+                'tensor_features',
+                'tensor_features_linear',
+                'labels',
+                'tensor_features_oev',
+                'Cx',
+                'Cy',
+                'u',
+                'v',
+                'augmented_spatial_mixing_coords',
+            ],
+            args[1:]
+        ):
+            updated_value = np.vstack((getattr(self, arg), arg_value))
+            setattr(self, arg, updated_value)
+
+        if self.config.debug:
+            print(f'[{self.set_id}] sucessfully stacked case {args[0]} into {self.case[:-1]}')
+
+
     def check_set(self):
         # List of attributes to check
         attributes = [
@@ -121,15 +388,16 @@ class CaseSet(object):
             'tensor_features',
             'tensor_features_linear',
             'labels',
-            'tensor_features_eV',
-            'labels_eV',
+            'tensor_features_oev',
+            'Cx',
+            'Cy',
             'u_velocity_label',
             'v_velocity_label'
         ]
 
         # Initialize a variable to store the first dimension of the first non-None attribute
         first_dim = None
-        print(f'{self.case[0]}:')
+        print(f'{self.set_id or self.case[0]}:')
         for attr in attributes:
             value = getattr(self, attr, None)
             if value is not None:
@@ -139,60 +407,7 @@ class CaseSet(object):
                 if first_dim is None:
                     first_dim = shape[0]
                 elif first_dim != shape[0]:
-                    raise ValueError(f'The first dimension of {attr} does not match the first dimension of the previous attributes')
+                    raise ValueError(f'{self.set_id or self.case[0]}: the first dimension of {attr} does not match the first dimension of the previous attributes')
         
         if first_dim is None:
-            raise ValueError('No attributes are set (all are None)')
-    
-
-if __name__ == '__main__':
-
-    ### test module
-    dataset_path = 'D:/OneDrive - Universidade de Lisboa/Turbulence Modelling Database'
-    turb_datasete = 'komegasst'
-    custom_turb_dataset = 'a_3_1_2_NL_S_DNS_eV'
-
-    case = 'PHLL_case_1p2'
-    features_filter = ['I1_1', 'I1_2', 'I1_3', 'I1_4', 'I1_5', 'I1_6', 'I1_8', 'I1_9', 'I1_15', 'I1_17', 'I1_19', 'I2_3', 'I2_4', 'q_1', 'q_2']
-
-    features = ['I1', 'I2', 'q']
-    tensor_features = ['Tensors']
-    tensor_features_linear = ['Shat']
-    labels = ['a_NL']
-
-    tensor_features_eV = ['S_DNS']
-    labels_eV = ['a']
-
-
-    standard_case_test_configuration = config(
-        cases=case,
-        turb_dataset=turb_datasete,
-        dataset_path=dataset_path,
-        features=features,
-        tensor_features=tensor_features,
-        tensor_features_linear=tensor_features_linear,
-        labels='b'
-    )
-
-    print('Standard case:')
-    CaseSet(case, set_config=standard_case_test_configuration).check_set()
-
-    optional_case_test_configuration = config(
-        cases=case,
-        turb_dataset=turb_datasete,
-        dataset_path=dataset_path,
-        features=features,
-        tensor_features=tensor_features,
-        tensor_features_linear=tensor_features_linear,
-        labels=labels,
-        custom_turb_dataset=custom_turb_dataset,
-        tensor_features_eV=tensor_features_eV,
-        labels_eV=labels_eV,
-        features_filter=features_filter
-    )
-
-    print('\nCustom turb dataset with features filter:')
-    CaseSet(case, set_config=optional_case_test_configuration).check_set()
-
-
-    
+            raise ValueError(f'{self.set_id or self.case[0]}: no attributes are set (all are None)')

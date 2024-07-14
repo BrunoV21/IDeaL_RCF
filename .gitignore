@@ -161,8 +161,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-
+.vscode/
+.code/
 autogen_utils/
+code_references/
 code_base/
 project_root/
+examples/experiments/
+examples/local_config.json
 MyCodingAgent.ipynb

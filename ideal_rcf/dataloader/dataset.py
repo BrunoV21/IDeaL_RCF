@@ -1,30 +1,42 @@
-try:
-    from dataloader.config import config
-    from dataloader.caseset import CaseSet
+from ideal_rcf.dataloader.config import SetConfig
+from ideal_rcf.dataloader.caseset import CaseSet
 
-except ModuleNotFoundError:
-    from config import config
-    from caseset import CaseSet
-
-from typing import List
+from typing import List, Optional
+from pathlib import Path
 from tqdm import tqdm
+from copy import deepcopy
+import joblib
+import os
 
 class DataSet(object):
     def __init__(self,
                  cases :List[str]=None,
-                 set_config :config=None) -> None:
+                 set_config :Optional[SetConfig]=None) -> None:
         
-        if not isinstance(set_config, config):
-            raise AssertionError(f'set_config must of instance {config()}')
+        if set_config and not isinstance(set_config, SetConfig):
+            raise AssertionError(f'set_config must of instance {SetConfig}')
         
-        self.config = set_config
+        if set_config:        
+            self.config = set_config
+            
+            self.cases = self.config.cases if  len(self.config.cases) > 1 else self.config.ensure_list_instance(cases)
+
+            self.features_scaler = self.config.features_scaler
+            self.labels_scaler = self.config.labels_scaler
+            self.features_oev_scaler = self.config.features_oev_scaler
+            self.labels_oev_scaler = self.config.labels_oev_scaler
+            self.mixer_invariant_features_scaler = self.config.mixer_invariant_features_scaler
+            self.mixer_invariant_oev_features_scaler = self.config.mixer_invariant_oev_features_scaler
+            
+            self.scaler_objs = [key for key, value in self.__dict__.items() if ('scaler' in key and value)]
+
+            self.contents = [
+                CaseSet(case=case, set_config=self.config)
+                for case in tqdm(self.cases)
+            ]
         
-        self.cases = self.config.cases if  len(self.config.cases) > 1 else self.config.ensure_list_instance(cases)
-        
-        self.contents = [
-            CaseSet(case=case, set_config=self.config)
-            for case in tqdm(self.cases)
-        ]
+        else:
+            print('DataSet initialized empty')
 
 
     def check_set(self):
@@ -32,62 +44,81 @@ class DataSet(object):
             case_obj.check_set()
 
 
-    def filter(self):
+    def _filter(self):
+        ...
         return 'Not implemented yet'
-    
-
-if __name__ == '__main__':
-
-    ### test module
-    dataset_path = 'D:/OneDrive - Universidade de Lisboa/Turbulence Modelling Database'
-    turb_datasete = 'komegasst'
-    custom_turb_dataset = 'a_3_1_2_NL_S_DNS_eV'
-
-    case = ['PHLL_case_0p5',
-            'PHLL_case_0p8',
-            'PHLL_case_1p0',
-            'PHLL_case_1p2',
-            'PHLL_case_1p5',]
-    features_filter = ['I1_1', 'I1_2', 'I1_3', 'I1_4', 'I1_5', 'I1_6', 'I1_8', 'I1_9', 'I1_15', 'I1_17', 'I1_19', 'I2_3', 'I2_4', 'q_1', 'q_2']
-
-    features = ['I1', 'I2', 'q']
-    tensor_features = ['Tensors']
-    tensor_features_linear = ['Shat']
-    labels = ['a_NL']
-
-    tensor_features_eV = ['S_DNS']
-    labels_eV = ['a']
-
-
-    standard_case_test_configuration = config(
-        cases=case,
-        turb_dataset=turb_datasete,
-        dataset_path=dataset_path,
-        features=features,
-        tensor_features=tensor_features,
-        tensor_features_linear=tensor_features_linear,
-        labels='b'
-    )
-
-    print('Standard case:')
-    DataSet(set_config=standard_case_test_configuration).check_set()
-
-    optional_case_test_configuration = config(
-        cases=case,
-        turb_dataset=turb_datasete,
-        dataset_path=dataset_path,
-        features=features,
-        tensor_features=tensor_features,
-        tensor_features_linear=tensor_features_linear,
-        labels=labels,
-        custom_turb_dataset=custom_turb_dataset,
-        tensor_features_eV=tensor_features_eV,
-        labels_eV=labels_eV,
-        features_filter=features_filter
-    )
-
-    print('\nCustom turb dataset with features filter:')
-    DataSet(set_config=optional_case_test_configuration).check_set()
-
 
     
+    def shuffle(self):
+        ...
+        return 'Implemented at CaseSet level'
+
+
+    def dump_scalers(self, 
+                     dir_path :Path):
+        scalers_dir = f'{dir_path}/scalers'
+        if not os.path.exists(scalers_dir):
+            os.mkdir(scalers_dir)
+
+        for scaler_type in self.scaler_objs:
+            scaler = getattr(self,scaler_type)
+            joblib.dump(scaler,f'{scalers_dir}/{scaler_type}.save')
+            print(f'[{scaler_type}] dumped sucessfully')
+
+
+    def load_scalers(self, 
+                     dir_path :Path):
+        
+        scalers_dir = f'{dir_path}/scalers'
+        if not os.path.exists(scalers_dir):
+            raise FileNotFoundError(f'Ensure {scalers_dir} exists and contains the scaler files')
+        
+        for scaler_file in os.listdir(Path(scalers_dir)):
+            scaler_type = scaler_file.split('.')[0]
+            scaler = joblib.load(f'{scalers_dir}/{scaler_file}')
+            setattr(self, scaler_type, scaler)
+            print(f'[{scaler_type}] loaded sucessfully')        
+
+
+    def stack_case_sets(self,
+                        case_sets :List[CaseSet],
+                        set_id :Optional[str]=None):
+        
+        if not case_sets:
+            return None
+        
+        stacked_case = case_sets[0]
+        stacked_case.set_id = set_id
+
+        for case_set in case_sets[1:]:
+            stacked_case._stack(*case_set._export_for_stack())
+
+        return stacked_case
+
+
+    def split_train_val_test(self):
+        local_contents = deepcopy(self.contents)
+
+        train_set = []
+        val_set = []
+        test_set = []
+
+        for case_set in local_contents:
+            if case_set.case in self.config.trainset:
+                train_set.append(case_set)
+            elif case_set.case in self.config.valset:
+                val_set.append(case_set)
+            elif case_set.case in self.config.testset:
+                test_set.append(case_set)
+        
+        train_set = self.stack_case_sets(train_set, set_id='train')
+        val_set = self.stack_case_sets(val_set, set_id='val')
+        test_set = self.stack_case_sets(test_set, set_id='test')        
+
+        tain_val_test = tuple(_set for _set in [train_set, val_set, test_set] if _set)
+
+        if self.config.debug:
+            for _set in tain_val_test:
+                _set.check_set()
+
+        return tain_val_test
