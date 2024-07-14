@@ -9,6 +9,42 @@ import joblib
 import os
 
 class DataSet(object):
+    """
+    A class for managing a collection of cases and their configurations.
+
+    Parameters
+    ----------
+    cases : List[str], optional
+        List of case identifiers.
+    set_config : Optional[SetConfig], optional
+        Configuration object containing setup details for the dataset.
+
+    Methods
+    -------
+    __init__(cases: List[str]=None, set_config: Optional[SetConfig]=None) -> None
+        Initializes the DataSet with cases and configuration, creating CaseSet instances.
+
+    check_set()
+        Validates the integrity of each CaseSet in the dataset.
+
+    _filter()
+        Placeholder method for filtering case sets (not implemented).
+
+    shuffle()
+        Shuffles the dataset (implemented in CaseSet).
+
+    dump_scalers(dir_path: Path)
+        Saves scaler objects to the specified directory.
+
+    load_scalers(dir_path: Path)
+        Loads scaler objects from the specified directory.
+
+    stack_case_sets(case_sets: List[CaseSet], set_id: Optional[str]=None)
+        Stacks multiple CaseSet instances into a single CaseSet.
+
+    split_train_val_test()
+        Splits the dataset into training, validation, and test sets based on configuration.
+    """
     def __init__(self,
                  cases :List[str]=None,
                  set_config :Optional[SetConfig]=None) -> None:

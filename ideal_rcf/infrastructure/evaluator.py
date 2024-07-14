@@ -9,6 +9,33 @@ from pathlib import Path
 import numpy as np
 
 class Evaluator(PlottingTools):
+    """
+    A class for evaluating predictions using specified sklearn metrics and generating diagnostic plots.
+
+    Inherits from PlottingTools.
+
+    Attributes:
+    - `sklearn_metrics_list`: Optional list of sklearn metrics to use for evaluation.
+    - `exp_id`: Optional path representing the experiment identifier.
+    - `img_folder`: Optional path to the folder for saving generated images.
+
+    Methods:
+    - `__init__(sklearn_metrics_list=None, exp_id=None, img_folder=None) -> None`: 
+      Initializes the Evaluator instance by inheriting metrics list, experiment identifier, and image folder from PlottingTools.
+
+    - `calculate_metrics(caseset_obj, show_plots=True, dump_metrics=False)`: 
+      Calculates evaluation metrics for the provided CaseSet object.
+      Displays metrics values and optionally saves them if `dump_metrics` is True.
+      Generates diagnostic plots if `show_plots` is True.
+
+    - `relative_error(caseset_obj)`: 
+      Computes the relative error between labels and predictions in the provided CaseSet object.
+      Raises ValueError if labels or predictions are missing.
+
+    - Other plotting methods inherited from PlottingTools: 
+      `parity_plots`, `plot_oev`, `plot_anisotropy`, `get_plots_error`.
+
+    """
     def __init__(self, 
                  sklearn_metrics_list :Optional[List]=None,
                  exp_id :Optional[Path]=None,

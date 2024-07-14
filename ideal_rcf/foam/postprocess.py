@@ -6,12 +6,33 @@ import numpy as np
 import re
 import os
 
-### load files from results
-### S_final
-### U
-### wallShearStress
 
 class FoamLoader(object):
+    """
+    A class for loading specific data from OpenFOAM result files into a CaseSet object.
+
+    Attributes:
+    - `caseset`: Instance of CaseSet containing the data to be loaded.
+
+    Methods:
+    - `__init__(caseset)`: Initializes the FoamLoader instance with a CaseSet object.
+    
+    - `read_U_from_foam(dir_path, _id='predictions', dump=False)`: 
+      Reads velocity data (U) from OpenFOAM result files and stores it in the CaseSet object.
+      
+    - `read_WSS_from_foam(dir_path, _id='predictions', dump=False)`: 
+      Reads wall shear stress (WSS) data from OpenFOAM result files and stores it in the CaseSet object.
+      
+    - `read_from_dir(dir_path)`: 
+      Reads data from specified directories (e.g., results, rans) and updates the CaseSet object with U data.
+
+    Example Usage:
+    ```python
+    caseset = CaseSet(...)
+    loader = FoamLoader(caseset)
+    loader.read_from_dir('/path/to/directory')
+    ```
+    """
     def __init__(self,
                  caseset :CaseSet):
         
@@ -69,6 +90,33 @@ class FoamLoader(object):
 
 
 class extract_U_profiles(object):
+    """
+    A class to extract velocity profiles from a CaseSet object for various velocity types.
+
+    Attributes:
+    - `caseset_obj`: Instance of CaseSet containing velocity data.
+    - `nX`: Number of points in the X direction (default is 99).
+    - `nY`: Number of points in the Y direction (default is 149).
+    - `velocities`: List of velocity types to extract profiles from (default is ['rans', 'predictions', 'dns']).
+    - `index_to_extract`: Indices to extract profiles from (default is [13, 21, 29, 37, 45, 53, 61, 69, 77, 85, 93]).
+
+    Methods:
+    - `__init__(caseset_obj, nX=99, nY=149, velocities=['rans', 'predictions', 'dns'])`: 
+      Initializes the extract_U_profiles instance with a CaseSet object and parameters.
+    
+    - `extract_profile(U)`: 
+      Extracts velocity profiles for a given velocity array U.
+
+    - `get_profiles()`: 
+      Retrieves velocity profiles for all specified velocity types.
+
+    Example Usage:
+    ```python
+    caseset = CaseSet(...)
+    profile_extractor = extract_U_profiles(caseset)
+    profiles = profile_extractor.get_profiles()
+    ```
+    """
     def __init__(self, 
                  caseset_obj :CaseSet,
                  nX=99,
@@ -111,9 +159,59 @@ class extract_U_profiles(object):
             profiles_dict[profile] = self.extract_profile(U)
 
         return profiles_dict
-    
+
 
 class ODE_operator(object):
+    """
+    Represents an operator for solving differential equations on a grid defined by a CaseSet object.
+
+    Attributes:
+    ----------
+    caseset_obj : CaseSet
+        An instance of CaseSet containing grid and scalar field data.
+    scalar_attr : str
+        The attribute name in caseset_obj from which scalar field values are extracted.
+    nX : int, optional
+        Number of points in the X direction (default is 99).
+    nY : int, optional
+        Number of points in the Y direction (default is 149).
+    X : numpy.ndarray
+        X coordinates of the grid points extracted from caseset_obj.
+    Y : numpy.ndarray
+        Y coordinates of the grid points extracted from caseset_obj.
+    a : numpy.ndarray
+        Scalar field values extracted from caseset_obj based on scalar_attr.
+        If scalar_attr is 'u', only the first component of the vector is extracted.
+    interior_points : numpy.ndarray
+        Indices of interior grid points excluding boundaries.
+    dX : numpy.ndarray
+        Array storing differences in X direction for interior grid points.
+    dY : numpy.ndarray
+        Array storing differences in Y direction for interior grid points.
+
+    Methods:
+    -------
+    inlet()
+        Returns an array of indices representing inlet boundary points.
+    outlet()
+        Returns an array of indices representing outlet boundary points.
+    top()
+        Returns an array of indices representing top boundary points.
+    wall()
+        Returns an array of indices representing wall boundary points.
+    assemble_index()
+        Assembles and returns indices of interior grid points by excluding boundary points.
+    build_distance_matrix_interior_points()
+        Builds and returns dX and dY arrays containing differences in X and Y directions for interior grid points.
+    build_boundary_distances()
+        Updates dX and dY arrays to account for boundary conditions using the grid topology and scalar field values.
+    extract_WSS(viscosity=5e-6, index_dict=None)
+        Computes and returns wall shear stress (WSS) arrays for top and bottom boundaries based on scalar field (a) and dY.
+    check_continuity()
+        Checks and returns a continuity solution array for the provided scalar field values (a).
+    calculate_distances()
+        Concatenates and returns arrays of X and Y coordinates of boundary points (top, wall, outlet, inlet).
+    """
     def __init__(self,
                  caseset_obj :CaseSet,
                  scalar_attr :str,

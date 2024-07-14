@@ -6,6 +6,83 @@ import json
 import os
 
 class SetConfig(object):
+    """
+    Configuration class for setting up dataset parameters for turbulence modeling.
+
+    Attributes:
+        cases (List[str]): List of case names.
+        turb_dataset (str): Name of the turbulence dataset.
+        dataset_path (str): Path to the dataset.
+        features (List[str]): List of feature names.
+        tensor_features (str): Tensor features.
+        labels (Optional[List[str]]): List of label names. Defaults to None.
+        tensor_features_linear (Optional[str]): Linear tensor features. Defaults to None.
+        trainset (Optional[List[str]]): List of training set case names. Defaults to None.
+        valset (Optional[List[str]]): List of validation set case names. Defaults to None.
+        testset (Optional[List[str]]): List of test set case names. Defaults to None.
+        features_scaler (Optional[str]): Scaler for features. Defaults to 'minmax'.
+        labels_scaler (Optional[str]): Scaler for labels. Defaults to 'standard'.
+        features_oev_scaler (Optional[str]): Scaler for OEV features. Defaults to 'standard'.
+        labels_oev_scaler (Optional[str]): Scaler for OEV labels. Defaults to 'standard'.
+        mixer_invariant_features_scaler (Optional[str]): Scaler for mixer invariant features. Defaults to 'minmax'.
+        mixer_invariant_oev_features_scaler (Optional[str]): Scaler for mixer invariant OEV features. Defaults to 'minmax'.
+        custom_turb_dataset (Optional[str]): Custom turbulence dataset. Defaults to None.
+        tensor_features_oev (Optional[str]): Tensor features for OEV. Defaults to None.
+        features_filter (Optional[List[str]]): Filter for features. Defaults to None.
+        features_cardinality (Optional[List[int]]): Cardinality of features. Defaults to None.
+        features_z_score_outliers_threshold (Optional[int]): Threshold for z-score outlier removal. Defaults to None.
+        features_transforms (Optional[List[str]]): List of feature transforms. Defaults to None.
+        skip_features_transforms_for (Optional[List[str]]): Features to skip transforms for. Defaults to None.
+        Cx (Optional[str]): X coordinate label. Defaults to 'Cx'.
+        Cy (Optional[str]): Y coordinate label. Defaults to 'Cy'.
+        u_velocity_label (Optional[str]): Label for u-velocity. Defaults to 'um'.
+        v_velocity_label (Optional[str]): Label for v-velocity. Defaults to 'vm'.
+        random_seed (Optional[int]): Random seed for shuffling. Defaults to 42.
+        enable_mixer (Optional[bool]): Flag to enable mixer. Defaults to False.
+        debug (Optional[bool]): Flag to enable debug mode. Defaults to False.
+        dataset_labels_dir (Optional[str]): Directory for dataset labels. Defaults to 'labels'.
+        pass_scalers_obj (Optional[Dict[str, Any]]): Dictionary of custom scalers. Defaults to None.
+        pass_transforms_obj (Optional[Dict[str, Any]]): Dictionary of custom transforms. Defaults to None.
+        pass_mixer_propertires_obj (Optional[Dict[str, Any]]): Dictionary of custom mixer properties. Defaults to None.
+
+    Methods:
+        __init__(self, cases, turb_dataset, dataset_path, features, tensor_features, labels=None, 
+                 tensor_features_linear=None, trainset=None, valset=None, testset=None, 
+                 features_scaler='minmax', labels_scaler='standard', features_oev_scaler='standard', 
+                 labels_oev_scaler='standard', mixer_invariant_features_scaler='minmax', 
+                 mixer_invariant_oev_features_scaler='minmax', custom_turb_dataset=None, 
+                 tensor_features_oev=None, features_filter=None, features_cardinality=None, 
+                 features_z_score_outliers_threshold=None, features_transforms=None, 
+                 skip_features_transforms_for=None, Cx='Cx', Cy='Cy', u_velocity_label='um', 
+                 v_velocity_label='vm', random_seed=42, enable_mixer=False, debug=False, 
+                 dataset_labels_dir='labels', pass_scalers_obj=None, pass_transforms_obj=None, 
+                 pass_mixer_propertires_obj=None):
+            Initializes the configuration with the provided parameters.
+        
+        ensure_list_instance(self, attribute):
+            Ensures that the provided attribute is a list.
+        
+        ensure_str_instance(self, attribute):
+            Ensures that the provided attribute is a string.
+        
+        build_features_from_cardinality(self):
+            Builds features based on the provided cardinality.
+        
+        apply_cbrt_signal_changes(features, debug=False):
+            Applies cubic root transformation to features with both positive and negative values.
+        
+        apply_log_no_signal_changes(features, debug=False):
+            Applies logarithmic transformation to features with only positive or only negative values.
+        
+        PHLL_coords_norm(Cx, Cy, case, PHLL_propeties={'H': 5.142, 'A': 3.858}):
+            Normalizes coordinates for PHLL cases.
+        
+        BUMP_coords_norm(Cx, Cy, case, BUMP_propeties={'C': 0.5 * 0.305}):
+            Normalizes coordinates for BUMP cases.
+        
+        IDENTITY_coords(Cx, Cy, case):
+            Returns the original coordinates without any normalization.
+    """
     def __init__(self,
                  cases :List[str],
                  turb_dataset :str,

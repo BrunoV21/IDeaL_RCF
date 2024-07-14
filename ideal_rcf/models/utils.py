@@ -3,6 +3,10 @@ import numpy as np
 
 
 class MakeRealizable(object):
+    """
+    inspired from [PiResNet-2.0: Data-driven Turbulence Modeling](https://github.com/Jackachao0618/PiResNet-2.0)
+    """
+
     def __init__(self, debug :Optional[bool]=False) -> None:
         self.debug = debug
 
