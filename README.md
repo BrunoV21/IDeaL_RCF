@@ -9,11 +9,15 @@ The provided models leverage Galilean Invariance when predicting the Anisotropy 
 
 The physics behind this framework can be found [here](https://fenix.tecnico.ulisboa.pt/cursos/meaer21/dissertacao/1972678479056448).
 
-Support for SSTBNNZ (a semi Supervised Zonal Approach) will be made avalabel in the future.
+Support for SSTBNNZ (a semi Supervised Zonal Approach) will be made avalable in the future.
 
 
 ## Instalation
+
+
 ```bash
+conda create --name ML_Turb python=3.9
+conda activate ML_Turb
 pip install git+https://github.com/BrunoV21/iDeaL_RCF.git
 ```
 ## Usage
@@ -28,7 +32,7 @@ A CaseSet must be created via a SetConfig obj which contains the params to be lo
 from ideal_rcf.dataloader.config import SetConfig
 from ideal_rcf.dataloader.caseset import CaseSet
 
-set_config = SetConfig(...)
+set_config = SetConfig(...)N
 caseset_obj = CaseSet('PHLL_case_1p2', set_config=set_config)
 ```
 View the [creating_casesets.ipynb](./examples/creating_casesets.ipynb) example for more.
