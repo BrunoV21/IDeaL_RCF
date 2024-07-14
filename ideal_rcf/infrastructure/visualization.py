@@ -9,7 +9,6 @@ from matplotlib import colormaps
 import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
-import os
 
 
 class PlottingTools(object):
