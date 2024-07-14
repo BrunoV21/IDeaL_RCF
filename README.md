@@ -188,3 +188,6 @@ More use cases are covered in the [examples](./examples/) directory:
 3. [Inference on loaded DataSet, Framework and exporting to openfoam](./examples/loading_inference_foam_export.py)
 4. [Post Processing resulting foam files](./examples/load_foam_fields.ipynb)
 
+
+## OpenFOAM Integration
+The solvers and configurations used for injecting the predictions are available [here](./openfoam/)
