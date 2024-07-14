@@ -162,7 +162,9 @@ cython_debug/
 #.idea/
 
 .vscode/
+.code/
 autogen_utils/
+code_references/
 code_base/
 project_root/
 examples/experiments/
