@@ -65,6 +65,9 @@ View the [creating_models.ipynb](./examples/creating_models.ipynb) example for m
 
 #### TBNN
 ```python
+from ideal_rcf.models.config import ModelConfig
+from ideal_rcf.models.framework import FrameWork
+
 TBNN_config = ModelConfig(
     layers_tbnn=layers_tbnn,
     units_tbnn=units_tbnn,
