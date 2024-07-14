@@ -1,30 +1,16 @@
-from types import SimpleNamespace
-
-try:
-    from ideal_rcf.models.config import ModelConfig, MixerConfig
-    from ideal_rcf.models.tbnn import TBNN
-    from ideal_rcf.models.evnn import eVNN
-    from ideal_rcf.models.oevnn import OeVNN    
-    from ideal_rcf.models.utils import MakeRealizable
-    from ideal_rcf.dataloader.dataset import DataSet
-    from ideal_rcf.dataloader.caseset import CaseSet
-
-except ModuleNotFoundError:
-    from config import ModelConfig, MixerConfig
-    from tbnn import TBNN
-    from evnn import eVNN
-    from oevnn import OeVNN
-
-    DataSet = SimpleNamespace()
-    DataSet.labels_scaler = None
-    DataSet.labels_eV_scaler = None
-
-    CaseSet = SimpleNamespace()
+from ideal_rcf.models.config import ModelConfig, MixerConfig
+from ideal_rcf.models.tbnn import TBNN
+from ideal_rcf.models.evnn import eVNN
+from ideal_rcf.models.oevnn import OeVNN    
+from ideal_rcf.models.utils import MakeRealizable
+from ideal_rcf.dataloader.dataset import DataSet
+from ideal_rcf.dataloader.caseset import CaseSet
 
 from tensorflow.keras.layers import Input, Lambda, Add, Concatenate
 from tensorflow.keras import Model
 from tensorflow.keras.models import load_model, save_model
 from sklearn.linear_model import LinearRegression
+from types import SimpleNamespace
 import matplotlib.pyplot as plt
 from typing import Optional
 from pathlib import Path
@@ -556,96 +542,3 @@ class FrameWork(object):
         for model_type, model in self.models.__dict__.items():
             save_model(model, f'{models_dir}/{model_type}.h5')
             print(f'[{model_type}] dumped sucessfully')
-
-
-if __name__ == '__main__':
-    layers_tbnn = 3
-    units_tbnn = 150
-    features_input_shape = (15,3)
-    tensor_features_input_shape = (20,3,3)
-
-    layers_evnn = 2
-    units_evnn = 150
-    tensor_features_linear_input_shape = (3,)
-
-    layers_oevnn = 2
-    units_oevnn = 150
-    tensor_features_linear_oev_input_shape = (3,)
-
-    learning_rate=5e-4
-    learning_rate_oevnn=1e-4
-
-    tbnn_mixer_config = MixerConfig(
-        features_mlp_layers=5,
-        features_mlp_units=150
-    )
-
-    evnn_mixer_config = MixerConfig(
-        features_mlp_layers=3,
-        features_mlp_units=150
-    )
-
-    oevnn_mixer_config = MixerConfig(
-        features_mlp_layers=5,
-        features_mlp_units=150
-    )
-
-    TBNN_config = ModelConfig(
-        layers_tbnn=layers_tbnn,
-        units_tbnn=units_tbnn,
-        features_input_shape=15,
-        tensor_features_input_shape=tensor_features_input_shape,
-        debug=True,
-        # tbnn_mixer_config=tbnn_mixer_config
-    )
-    assert TBNN_config._evtbnn == False
-    assert TBNN_config._oevnltbnn == False
-    print('Sucess creating TBNN ModelConfig obj')
-    tbnn = FrameWork(TBNN_config)
-    tbnn.compile_models()
-    
-    eVTBNN_config = ModelConfig(
-        layers_tbnn=layers_tbnn,
-        units_tbnn=units_tbnn,
-        features_input_shape=15,
-        tensor_features_input_shape=tensor_features_input_shape,
-        layers_evnn=layers_evnn,
-        units_evnn=units_evnn,
-        tensor_features_linear_input_shape=tensor_features_linear_input_shape,
-        # tbnn_mixer_config=tbnn_mixer_config,
-        # evnn_mixer_config=evnn_mixer_config,
-        debug=True,
-    )
-    assert eVTBNN_config._evtbnn == True
-    assert eVTBNN_config._oevnltbnn == False
-    print('Sucess creating eVTBNN_config ModelConfig obj')
-    evtbnn = FrameWork(eVTBNN_config)
-    evtbnn.compile_models()
-
-    OeVNLTBNN_config = ModelConfig(
-        layers_tbnn=layers_tbnn,
-        units_tbnn=units_tbnn,
-        features_input_shape=features_input_shape,
-        tensor_features_input_shape=tensor_features_input_shape,
-        layers_evnn=layers_evnn,
-        units_evnn=units_evnn,
-        tensor_features_linear_input_shape=tensor_features_linear_input_shape,
-        layers_oevnn=layers_oevnn,
-        units_oevnn=units_oevnn,
-        tensor_features_linear_oev_input_shape=tensor_features_linear_oev_input_shape,
-        learning_rate=learning_rate,
-        learning_rate_oevnn=learning_rate_oevnn,
-        tbnn_mixer_config=tbnn_mixer_config,
-        evnn_mixer_config=evnn_mixer_config,
-        oevnn_mixer_config=oevnn_mixer_config,
-        debug=True
-    )
-    assert OeVNLTBNN_config._evtbnn == True
-    assert OeVNLTBNN_config._oevnltbnn == True
-    print('Sucess creating mixer OeVNLTBNN_config ModelConfig obj')
-    oevnltbnn = FrameWork(OeVNLTBNN_config)
-    oevnltbnn.compile_models()
-    oevnltbnn.extract_oev()
-
-    ### put in place checl in config where if mixer config shape of features input shape >= 1, else int
-    ### include train method
