@@ -2,6 +2,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from typing import List, Dict, Optional, Any
 from copy import deepcopy
 import numpy as np
+import json
+import os
 
 class SetConfig(object):
     def __init__(self,
@@ -233,3 +235,42 @@ class SetConfig(object):
         'BUMP': BUMP_coords_norm.__get__(object),
         'CNDV': IDENTITY_coords.__get__(object)
     }
+
+
+def set_dataset_path(custom_path :Optional[str]=None):
+    """
+    Set the dataset path in the environment variable 'DATASET_PATH'.
+
+    This function determines the dataset path based on the following order of precedence:
+    1. If a file named 'local_config.json' exists in the current working directory, 
+       it reads the 'dataset_path' from this file.
+    2. If `custom_path` is provided, it uses this path.
+    3. Otherwise, it defaults to './Turbulence Modelling Database'.
+
+    The determined path is then set in the environment variable 'DATASET_PATH'.
+
+    Args:
+        custom_path (Optional[str]): An optional custom path to the dataset.
+
+    Raises:
+        KeyError: If 'dataset_path' key is not found in 'local_config.json'.
+        json.JSONDecodeError: If 'local_config.json' contains invalid JSON.
+
+    Example:
+        >>> set_dataset_path('/custom/path/to/dataset')
+    >>> print(os.environ['DATASET_PATH'])
+        /custom/path/to/dataset
+    """    
+    if 'local_config.json' in os.listdir(os.getcwd()):
+        with open('./local_config.json',  'r') as _file:
+            content = json.load(_file)
+        dataset_path = content['dataset_path']
+
+    elif custom_path:
+        dataset_path = custom_path
+
+    else:
+        dataset_path = './Turbulence Modelling Database'
+
+
+    os.environ['DATASET_PATH'] = dataset_path
