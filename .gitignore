@@ -165,6 +165,6 @@ cython_debug/
 autogen_utils/
 code_base/
 project_root/
-experiments/final_results_cross_val/
-experiments/test_cross_val/
+examples/experiments/
+examples/local_config.json
 MyCodingAgent.ipynb
