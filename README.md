@@ -115,7 +115,7 @@ evtbnn.compile_models()
 print(evtbnn.models.evtbnn.summary())
 ```
 
-#### oEVNLTBNN
+#### OeVNLTBNN
 ```python
 from ideal_rcf.models.config import ModelConfig
 from ideal_rcf.models.framework import FrameWork
