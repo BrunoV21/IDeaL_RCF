@@ -20,6 +20,21 @@ conda create --name ML_Turb python=3.9
 conda activate ML_Turb
 pip install git+https://github.com/BrunoV21/iDeaL_RCF.git
 ```
+
+## Dowloading the dataset
+The original dataset can be downloaded directly from kaggle
+```bash
+kaggle datasets download -d ryleymcconkey/ml-turbulence-dataset
+mkdir ml-turbulence-dataset
+unzip ml-turbulence-dataset.zip -d ml-turbulence-dataset
+```
+The expanded dataset can be included with
+```bash
+gdown https://drive.google.com/uc?id=1rb2-7vJQtp_nLqxjmnGJI2aRQx8u9W6B
+unzip a_3_1_2_NL_S_DNS_eV.zip -d ml-turbulence-dataset/komegasst
+```
+
+
 ## Usage
 The package is structure across three core objects CaseSet, DataSet and FrameWork.
 A series of other modules are available for extended functionality such as evaluation, visualization and integration with OpenFOAM, all of which interact with a CaseSet obj. Before starting make sure that [A curated dataset for data-driven

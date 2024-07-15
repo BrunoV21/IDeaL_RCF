@@ -322,7 +322,7 @@ def set_dataset_path(custom_path :Optional[str]=None):
     1. If a file named 'local_config.json' exists in the current working directory, 
        it reads the 'dataset_path' from this file.
     2. If `custom_path` is provided, it uses this path.
-    3. Otherwise, it defaults to './Turbulence Modelling Database'.
+    3. Otherwise, it defaults to './ml-turbulence-dataset'.
 
     The determined path is then set in the environment variable 'DATASET_PATH'.
 
@@ -342,12 +342,8 @@ def set_dataset_path(custom_path :Optional[str]=None):
         with open('./local_config.json',  'r') as _file:
             content = json.load(_file)
         dataset_path = content['dataset_path']
-
     elif custom_path:
         dataset_path = custom_path
-
     else:
-        dataset_path = './Turbulence Modelling Database'
-
-
+        dataset_path = './ml-turbulence-dataset'    
     os.environ['DATASET_PATH'] = dataset_path
