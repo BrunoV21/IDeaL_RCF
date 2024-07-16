@@ -18,7 +18,7 @@ Support for SSTBNNZ (a semi Supervised Zonal Approach) will be made avalable in 
 ```bash
 conda create --name ML_Turb python=3.9
 conda activate ML_Turb
-pip install git+https://github.com/BrunoV21/iDeaL_RCF.git
+pip install git+https://github.com/BrunoV21/IDeaL_RCF.git
 ```
 
 ## Dowloading the dataset
