@@ -67,12 +67,12 @@ View the [creating_datasets.ipynb](./examples/creating_datasets.ipynb) example f
 
 ### FrameWork
 The FrameWork receives a ModelConfig obj which will determine the model to be used. Currently three models are supported:
-1. TBNN - Tensor Based Neural Networks - proposed originally by Ling *et al.* [paper](https://www.osti.gov/servlets/purl/1333570) [code](https://github.com/sandialabs/tbnn)
-2. eVTBN - Effective Viscosity Tensor Based Neural Network - proposed by ... [paper][thesis][wiki]
+1. TBNN - Tensor Based Neural Networks - proposed originally by Ling *et al.* [[paper]](https://www.osti.gov/servlets/purl/1333570) [code](https://github.com/sandialabs/tbnn)
+2. eVTBN - Effective Viscosity Tensor Based Neural Network - proposed by ... [paper][thesis][[wiki]](https://github.com/BrunoV21/IDeaL_RCF/wiki)
 3. OeVNLTBNN - Optimal Eddy Viscosity + Non Linear Tensor Based Neural Network:
-    1. orginally proposed by Wang *et al.* [paper](https://arxiv.org/abs/1701.07102)
-    2. improved by McConkey *et al.* [paper](https://arxiv.org/abs/2201.01710) to always be non-negative
-    3. expanded by ... [paper][thesis][wiki] to be coupled with the anisotropy tensor via the strain rate during training but decoupled for inference and eVTBNN for non linear-term
+    1. orginally proposed by Wang *et al.* [[paper]](https://arxiv.org/abs/1701.07102)
+    2. improved by McConkey *et al.* [[paper]](https://arxiv.org/abs/2201.01710) to always be non-negative
+    3. expanded by ... [paper][thesis] [[wiki]](https://github.com/BrunoV21/IDeaL_RCF/wiki) to be coupled with the anisotropy tensor via the strain rate during training but decoupled for inference and eVTBNN for non linear-term
 
 Each model builds on the previous, so an eVTBNN is a TBNN combined with an eVNN while the OeVNLTBNN is an eVTBNN paired with an oEVNN.
 
@@ -145,7 +145,7 @@ print(oevnltbnn.models.nltbnn.summary())
 ```
 
 #### Mixer:
-All models support the Mixer Architecture which is based on the concept introduced by Chen *et al.* in [TSMixer: An All-MLP Architecture for Time Series Forecasting](https://arxiv.org/abs/2303.06053) [code](https://github.com/google-research/google-research/blob/master/tsmixer/tsmixer_basic/models/tsmixer.py) and adapted to work with spatial features while preserving invariance. The architecture and explanation are available in the [wiki].
+All models support the Mixer Architecture which is based on the concept introduced by Chen *et al.* in [TSMixer: An All-MLP Architecture for Time Series Forecasting](https://arxiv.org/abs/2303.06053) [[code]](https://github.com/google-research/google-research/blob/master/tsmixer/tsmixer_basic/models/tsmixer.py) and adapted to work with spatial features while preserving invariance. The architecture and explanation are available in the [[wiki]](https://github.com/BrunoV21/IDeaL_RCF/wiki).
 
 ```python
 from ideal_rcf.models.config import ModelConfig, MixerConfig
