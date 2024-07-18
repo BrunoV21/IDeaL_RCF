@@ -47,7 +47,7 @@ A CaseSet must be created via a SetConfig obj which contains the params to be lo
 from ideal_rcf.dataloader.config import SetConfig
 from ideal_rcf.dataloader.caseset import CaseSet
 
-set_config = SetConfig(...)N
+set_config = SetConfig(...)
 caseset_obj = CaseSet('PHLL_case_1p2', set_config=set_config)
 ```
 View the [creating_casesets.ipynb](./examples/creating_casesets.ipynb) example for more.
