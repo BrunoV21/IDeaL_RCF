@@ -1,7 +1,7 @@
 import setuptools
 import sys
 
-with open("./docs/package_README.md", "r") as fh:
+with open("package_README.md", "r") as fh:
     long_description = fh.read()
 
 
@@ -33,7 +33,7 @@ elif sys.platform.startswith('linux'):
 
 setuptools.setup(
     name="ideal_rcf",
-    version="0.2a",
+    version="0.3a",
     author="bruno_v",
     author_email="bruno.vitorino@tecnico.ulisboa.pt",
     description="A python framework for invariant rans turbulence closure.",

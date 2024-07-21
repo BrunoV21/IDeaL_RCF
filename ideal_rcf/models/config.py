@@ -5,6 +5,8 @@ from tensorflow.keras.initializers import LecunNormal
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import Huber
 
+from sklearn.mixture import BayesianGaussianMixture, GaussianMixture
+
 
 class BaseConfig(object):
     def ensure_list_instance(self, attribute):
@@ -51,6 +53,63 @@ class BaseConfig(object):
             raise AttributeError(f'{passed_attr} have been passed, to ensure functional beahaviour also pass {empty_attr}')
 
 
+class MixtureConfig(BaseConfig):
+    # dpgmm = mixture.BayesianGaussianMixture(n_components=zones, 
+    #                                         covariance_type='full', 
+    #                                         init_params = 'k-means++', 
+    #                                         max_iter = 300, 
+    #                                         n_init = 4,
+    #                                         weight_concentration_prior = 5,
+    #                                         mean_precision_prior = 5,
+    #                                         tol = 5e-6,
+    #                                         random_state = 42,
+    #                                         verbose = 2,
+    #                                         verbose_interval = 50).fit(target)
+    def __init__(self,
+                 mixture :str,
+                 n_compoents :int,
+                 covariance_type :str='full', 
+                 init_params :str='k-means++', 
+                 max_iter :int=300, 
+                 n_init :int=4,
+                 weight_concentration_prior :int=5,
+                 mean_precision_prior :int=5,
+                 tol :int=5e-6,
+                 random_state :int=42,
+                 verbose :int=2,
+                 verbose_interval :int=50,
+                 pass_mixtures_obj :Optional[dict]=None,
+                 debug :Optional[bool]=False) -> None:
+        
+        self.mixture = self.mixtures_obj.get(mixture)
+        if not self.mixture:
+            raise ValueError(f'mixture must be one of {list(self.mixtures_obj.keys())} but got {mixture}')
+        
+        self.n_n_compoents = self.ensure_int_instance(n_compoents),
+        self.covariance_type = self.ensure_str_instance(covariance_type)
+        self.init_params = self.ensure_str_instance(init_params)
+        self.max_iter = self.ensure_int_instance(max_iter)
+        self.n_init = self.ensure_int_instance(n_init)
+        self.weight_concentration_prior = self.ensure_int_instance(weight_concentration_prior)
+        self.mean_precision_prior =  self.ensure_int_instance(mean_precision_prior)
+        self.tol =  self.ensure_int_instance(tol)
+        self.random_state =  self.ensure_int_instance(random_state)
+        self.verbose = self.ensure_int_instance(verbose)
+        self.verbose_interval = self.ensure_int_instance(verbose_interval)
+
+        if pass_mixtures_obj:
+            self.mixtures_obj.update(pass_mixtures_obj)
+
+        self.debug = debug
+    
+
+    mixtures_obj = {
+        'gaussian': GaussianMixture,
+        'bayesian_gausssian': BayesianGaussianMixture,
+    }
+
+
+
 class MixerConfig(BaseConfig):
     def __init__(self,
                  features_mlp_layers :int,
@@ -69,6 +128,12 @@ class MixerConfig(BaseConfig):
         self.initializer = initializer
         self.regularizer = regularizer
         self.activations = activations
+
+
+class ClassifierConfig(BaseConfig):
+    def __init__(self) -> None:
+        ...
+        
 
 
 class ModelConfig(BaseConfig):
