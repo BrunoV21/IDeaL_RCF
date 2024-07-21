@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 
 this_directory = Path(__file__).parent
+print(this_directory)
 with open(f"{this_directory}/docs/package_README.md", "r") as fh:
     long_description = fh.read()
 
