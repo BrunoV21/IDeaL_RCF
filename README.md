@@ -50,7 +50,7 @@ from ideal_rcf.dataloader.caseset import CaseSet
 set_config = SetConfig(...)
 caseset_obj = CaseSet('PHLL_case_1p2', set_config=set_config)
 ```
-View the [creating_casesets.ipynb](./examples/creating_casesets.ipynb) example for more.
+View the [creating_casesets.ipynb](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/creating_casesets.ipynb) example for more.
 
 ### DataSet
 A DataSet receives the same type of SetConfig as the CaseSet but handles different parameters such as trainset, valset and tesset which are used to split the DataSet into the required sets for the supervised training. The DataSet object fits and stores the scalers built from the trainset.
@@ -62,7 +62,7 @@ set_config = SetConfig(...)
 dataset_obj = DataSet(set_config=set_config)
 train, val, test = dataset_obj.split_train_val_test()
 ```
-View the [creating_datasets.ipynb](./examples/creating_datasets.ipynb) example for more.
+View the [creating_datasets.ipynb](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/creating_datasets.ipynb) example for more.
 
 
 ### FrameWork
@@ -76,7 +76,7 @@ The FrameWork receives a ModelConfig obj which will determine the model to be us
 
 Each model builds on the previous, so an eVTBNN is a TBNN combined with an eVNN while the OeVNLTBNN is an eVTBNN paired with an oEVNN.
 
-View the [creating_models.ipynb](./examples/creating_models.ipynb) example for more.
+View the [creating_models.ipynb](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/creating_models.ipynb) example for more.
 
 #### TBNN
 ```python
@@ -200,12 +200,12 @@ foam.dump_predictions(dir_path)
 ```
 
 ## Examples
-More use cases are covered in the [examples](./examples/) directory:
-1. [FrameWork Training](./examples/training_oevnltbnn.ipynb)
-2. [Setting Up Cross Validtion](./examples/cross_val_load_inference.py)
-3. [Inference on loaded DataSet, Framework and exporting to openfoam](./examples/loading_inference_foam_export.py)
-4. [Post Processing resulting foam files](./examples/load_foam_fields.ipynb)
+More use cases are covered in the [examples](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples) directory:
+1. [FrameWork Training](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/training_oevnltbnn.ipynb)
+2. [Setting Up Cross Validtion](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/cross_val_load_inference.py)
+3. [Inference on loaded DataSet, Framework and exporting to openfoam](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/loading_inference_foam_export.py)
+4. [Post Processing resulting foam files](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/load_foam_fields.ipynb)
 
 
 ## OpenFOAM Integration
-The solvers and configurations used for injecting the predictions are available [here](./openfoam/)
+The solvers and configurations used for injecting the predictions are available [here](https://github.com/BrunoV21/IDeaL_RCF/tree/main/openfoam)

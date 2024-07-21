@@ -1,9 +1,7 @@
 import setuptools
-from os import path
 import sys
 
-loc = path.abspath(path.dirname(__file__))
-with open(f"{loc}/README_package.md", "r") as fh:
+with open("README.md", "r") as fh:
     long_description = fh.read()
 
 install_requires = [
