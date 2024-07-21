@@ -1,9 +1,10 @@
 import setuptools
+from pathlib import Path
 import sys
 
-with open("package_README.md", "r") as fh:
+this_directory = Path(__file__).parent
+with open(f"{this_directory}/docs/package_README.md", "r") as fh:
     long_description = fh.read()
-
 
 install_requires = [
     "gdown==5.2.0",
