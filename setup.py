@@ -1,17 +1,16 @@
 import setuptools
 import sys
 
-with open("package_README.md", "r") as fh:
+with open("README.md", "r") as fh:
     long_description = fh.read()
-
 
 install_requires = [
     "gdown==5.2.0",
-        "matplotlib==3.7.1",
-        "polars==1.0.0",
-        "scikit-learn==1.2.2",        
-        "tqdm==4.41.1",
-        "typing_extensions==4.8.0"
+    "matplotlib==3.7.1",
+    "polars==1.0.0",
+    "scikit-learn==1.2.2",
+    "tqdm==4.41.1",
+    "typing_extensions==4.8.0"
 ]
 
 # Add platform-specific dependencies
@@ -39,7 +38,7 @@ setuptools.setup(
     description="A python framework for invariant rans turbulence closure.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/username/demopackage",
+    url="https://github.com/BrunoV21/IDeaL_RCF",
     packages=setuptools.find_packages(),
     install_requires=install_requires,
     classifiers=(
