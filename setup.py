@@ -1,10 +1,9 @@
 import setuptools
-from pathlib import Path
+from os import path
 import sys
 
-this_directory = Path(__file__).parent
-print(this_directory)
-with open(f"{this_directory}/docs/package_README.md", "r") as fh:
+loc = path.abspath(path.dirname(__file__))
+with open(f"{loc}/README_package.md", "r") as fh:
     long_description = fh.read()
 
 install_requires = [
