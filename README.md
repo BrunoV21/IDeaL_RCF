@@ -203,7 +203,7 @@ foam.dump_predictions(dir_path)
 More use cases are covered in the [examples](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples) directory:
 1. [FrameWork Training](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/training_oevnltbnn.ipynb)
 2. [Setting Up Cross Validtion](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/cross_val_load_inference.py)
-3. [Train and Inference with Cross Validation](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/cross_validation.py)
+3. [Train and Inference with Cross Validation](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/cross_val_train.py)
 4. [Inference on loaded DataSet, Framework and exporting to openfoam](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/loading_inference_foam_export.py)
 5. [Post Processing resulting foam files](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/load_foam_fields.ipynb)
 
