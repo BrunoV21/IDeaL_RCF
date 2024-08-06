@@ -206,15 +206,24 @@ class CrossVal(Evaluator):
     def inference(self,
                   caseset :CaseSet):
         
-        self.get_best_n if self.cross_val_config.use_best_n_folds else ...
+        self.get_best_n() if self.cross_val_config.use_best_n_folds else ...
 
         acc_preds = None
         acc_preds_oev = None
         for best_fold in self.best_folds:
             print(f'[fold {best_fold}]')
+            
+            caseset_obj = CaseSet(
+                        case=caseset.case,
+                        set_config=caseset.config, 
+                        set_id=caseset.set_id,
+                        initialize_empty=True
+                    )        
+            caseset_obj._import_from_copy(*deepcopy(caseset._export_for_stack()))
+                
             predictions = self.folds[best_fold].model.inference(
                 self.folds[best_fold].dataset,
-                caseset,
+                caseset_obj,
                 dump_predictions=True
             )
 
