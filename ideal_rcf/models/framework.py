@@ -231,7 +231,7 @@ class FrameWork(object):
 
 
     def compile_models(self):
-        
+        tf.random.set_seed(self.config.random_seed)
         self.build() if not self.compiled_from_files else ...
 
         for model_type, model in self.models.__dict__.items():
@@ -264,9 +264,7 @@ class FrameWork(object):
         
         if val_caseset and not isinstance(val_caseset, CaseSet):
             raise TypeError(f'val_caseset_obj must be {CaseSet} instance')
-        
-        tf.random.set_seed(self.config.random_seed)
-        
+                
         train_caseset_obj = CaseSet(
                     case=train_caseset.case,
                     set_config=train_caseset.config, 
