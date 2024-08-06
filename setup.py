@@ -32,7 +32,7 @@ elif sys.platform.startswith('linux'):
 
 setuptools.setup(
     name="ideal_rcf",
-    version="0.3a",
+    version="0.3a.1",
     author="bruno_v",
     author_email="bruno.vitorino@tecnico.ulisboa.pt",
     description="A python framework for invariant rans turbulence closure.",
