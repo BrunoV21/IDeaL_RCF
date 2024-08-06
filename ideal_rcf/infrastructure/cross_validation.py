@@ -212,7 +212,7 @@ class CrossVal(Evaluator):
         acc_preds_oev = None
         for best_fold in self.best_folds:
             print(f'[fold {best_fold}]')
-            
+
             caseset_obj = CaseSet(
                         case=caseset.case,
                         set_config=caseset.config, 
@@ -253,6 +253,9 @@ class CrossVal(Evaluator):
         except ValueError:
             acc_preds_oev /= len(self.best_folds)
             caseset.predictions_oev = acc_preds_oev
+
+        if caseset_obj.config.labels:
+            caseset.labels = caseset_obj.labels
 
         caseset.set_id = f'f_{"_".join([str(best_fold) for best_fold in self.best_folds])}_avg'
 
