@@ -84,9 +84,6 @@ class FrameWork(object):
         
         self.config = model_config
         self._id = _id
-
-        tf.random.set_seed(42)
-
         self.compiled_from_files = False
         self.models = SimpleNamespace()
         self.history = SimpleNamespace()
@@ -268,6 +265,8 @@ class FrameWork(object):
         if val_caseset and not isinstance(val_caseset, CaseSet):
             raise TypeError(f'val_caseset_obj must be {CaseSet} instance')
         
+        tf.random.set_seed(self.config.random_seed)
+        
         train_caseset_obj = CaseSet(
                     case=train_caseset.case,
                     set_config=train_caseset.config, 
@@ -377,6 +376,7 @@ class FrameWork(object):
         if dry_run:
             return tuple(obj for obj in [dataset_obj, train_caseset_obj, val_caseset_obj] if obj)
 
+        
         for model_type, model in self.models.__dict__.items():
             if model_type == 'oevnn':
                 continue
