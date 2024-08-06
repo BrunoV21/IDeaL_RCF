@@ -102,7 +102,7 @@ def cross_val_loading_example():
         units_oevnn=units_oevnn,
         tensor_features_linear_oev_input_shape=tensor_features_linear_oev_input_shape,
         learning_rate=learning_rate,
-        epochs=2,
+        epochs=1,
         batch=128,
         learning_rate_oevnn=learning_rate_oevnn,
         tbnn_mixer_config=tbnn_mixer_config,
@@ -120,12 +120,12 @@ def cross_val_loading_example():
             {
                 'set':{
                     'trainset': [
-                        'PHLL_case_0p5',
-                        'PHLL_case_0p8',
-                        'PHLL_case_1p5'
+                        ['PHLL_case_0p5'],
+                        ['PHLL_case_0p8'],
+                        ['PHLL_case_1p5']
                     ],
                     'valset': [
-                        'PHLL_case_1p0',
+                        ['PHLL_case_1p0'],
                     ],
                 },
                 'model':{
@@ -135,12 +135,12 @@ def cross_val_loading_example():
             {
                 'set':{
                     'trainset': [
-                        'PHLL_case_0p5',
-                        'PHLL_case_1p0',
-                        'PHLL_case_1p5'
+                        ['PHLL_case_0p5'],
+                        ['PHLL_case_1p0'],
+                        ['PHLL_case_1p5']
                     ],
                     'valset': [
-                        'PHLL_case_0p8',
+                        ['PHLL_case_0p8'],
                     ],
                 },
                 'model':{
@@ -163,7 +163,7 @@ def cross_val_loading_example():
                             base_set_config=BaseSetConfig,
                             base_model_config=OeVNLTBNN_config)
 
-    dir_path='./experiments/test_cross_val'
+    dir_path='./experiments/results_cross_val'
     cv_framework.load_all(dir_path=dir_path)
     
     ### Inference case with no labels
@@ -186,7 +186,7 @@ def cross_val_loading_example():
     PHLL_case_1p2 = CaseSet(case='PHLL_case_1p2', set_config=no_labels_CaseSetConfig)
     cv_framework.inference(PHLL_case_1p2)
     print(f'set_id = {PHLL_case_1p2.set_id}')
-    
+
     eval_instance = Evaluator()
     eval_instance.plot_oev(PHLL_case_1p2)
     eval_instance.plot_anisotropy(PHLL_case_1p2)    
