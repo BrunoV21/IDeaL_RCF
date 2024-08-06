@@ -55,8 +55,8 @@ class CrossValConfig(object):
                 example_folds_config = [
                     {
                         'set': {
-                            'trainset': ['PHLL_case_0p5', 'PHLL_case_0p8', 'PHLL_case_1p5'],
-                            'valset': ['PHLL_case_1p0'],
+                            'trainset': [['PHLL_case_0p5'], ['PHLL_case_0p8'], ['PHLL_case_1p5']],
+                            'valset':[['PHLL_case_1p0']],
                         },
                         'model': {
                             'random_seed': 42
@@ -64,8 +64,8 @@ class CrossValConfig(object):
                     },
                     {
                         'set': {
-                            'trainset': ['PHLL_case_0p5', 'PHLL_case_1p0', 'PHLL_case_1p5'],
-                            'valset': ['PHLL_case_0p8'],
+                            'trainset': [['PHLL_case_0p5'], ['PHLL_case_1p0'], ['PHLL_case_1p5']],
+                            'valset': [['PHLL_case_0p8']],
                         },
                         'model': {
                             'random_seed': 84
@@ -103,7 +103,6 @@ class CrossValConfig(object):
                             raise KeyError(f'folds_config {value} must have key {sub_key}')
 
 
-
 class CrossVal(Evaluator):
     def __init__(self,
                  cross_val_config :CrossValConfig,
@@ -120,8 +119,7 @@ class CrossVal(Evaluator):
 
         if not isinstance(base_model_config, ModelConfig):
             raise AssertionError(f'[config_error] base_model_config must be of instance {ModelConfig()}')
-
-
+        
         super().__init__(cross_val_config.cost_metrics, exp_id, img_folder)
 
         self.cross_val_config = cross_val_config
@@ -170,7 +168,8 @@ class CrossVal(Evaluator):
             ### init scalers and split
             train, val = self.folds[fold].dataset.split_train_val_test()
             self.folds[fold].model.train(self.folds[fold].dataset, train, val)
-            self.folds[fold].eval = self.calulate_metrics(val,show_plots=show_plots, dump_metrics=True)
+            self.folds[fold].model.inference(self.folds[fold].dataset, val)
+            self.folds[fold].eval = self.calculate_metrics(val, show_plots=show_plots, dump_metrics=True)
         self.get_best_n if self.cross_val_config.use_best_n_folds else ...
 
 
@@ -255,7 +254,7 @@ class CrossVal(Evaluator):
         for fold, fold_obj in enumerate(self.folds):
             fold_dir = f'{dir_path}/fold_{fold}'
             if not os.path.exists(fold_dir):
-                os.mkdir(fold_dir)
+                os.makedirs(fold_dir)
             print(f'[fold_{fold}]')
             fold_obj.dataset.dump_scalers(fold_dir)
             fold_obj.model.dump_to_dir(fold_dir)
