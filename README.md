@@ -1,4 +1,12 @@
+<a href="https://pypi.org/project/ideal-rcf" target="_blank">
+    <img src="https://img.shields.io/pypi/pyversions/ideal-rcf.svg?color=%2334D058" alt="Supported Python versions">
+</a> 
+<a href="https://pypi.org/project/ideal-rcf" target="_blank">
+    <img src="https://img.shields.io/pypi/v/ideal-rcf?color=%2334D058&label=pypi%20package" alt="Package version">
+</a>
+
 # IDeaL_RCF
+
 An Invariant Deep Learning RANS Closure Framework provides a unified way to interact with [A curated dataset for data-driven
 turbulence modelling](https://doi.org/10.34740/kaggle/dsv/2637500) by McConkey *et al.* allowing for data loading, preprocessing, model training and experimenting, inference, evaluation, integration with openfoam via exporting and postprocessing openfoam files.
 
@@ -7,9 +15,9 @@ The framework uses [tensorflow](https://www.tensorflow.org/api_docs/python/tf/al
 The provided models leverage Galilean Invariance when predicting the Anisotropy Tensor and an Eddy Viscosity which can then be injected into a converged [RANS](https://en.wikipedia.org/wiki/Reynolds-averaged_Navier%E2%80%93Stokes_equations) simulation using [OpenFOAM v2006](https://www.openfoam.com/news/main-news/openfoam-v20-06) and converging towards the [DNS](https://en.wikipedia.org/wiki/Direct_numerical_simulation) velocity field.
 
 
-The physics behind this framework can be found [here](https://fenix.tecnico.ulisboa.pt/cursos/meaer21/dissertacao/1972678479056448).
+The physics behind this framework can be found [here](https://fenix.tecnico.ulisboa.pt/cursos/meaer21/dissertacao/1972678479056448). [[TEMPORARY LINK](https://ulisboa-my.sharepoint.com/:f:/g/personal/ist192669_tecnico_ulisboa_pt/EhzZevmYHnhMmc0Olks9YGIBK6acRzdYnn54DaWjiNpRTg)]
 
-Support for SSTBNNZ (a semi Supervised Zonal Approach) will be made avalable in the future.
+Support for [SSTBNNZ](https://github.com/BrunoV21/IDeaL_RCF/tree/main/docs/SSTBNNZ/MIxerFluxo.png) (a semi Supervised Zonal Approach) will be made avalable in the future.
 
 
 ## Instalation
@@ -18,7 +26,7 @@ Support for SSTBNNZ (a semi Supervised Zonal Approach) will be made avalable in 
 ```bash
 conda create --name ML_Turb python=3.9
 conda activate ML_Turb
-pip install git+https://github.com/BrunoV21/IDeaL_RCF.git
+pip install ideal-rcf
 ```
 
 ## Dowloading the dataset
@@ -38,7 +46,7 @@ unzip a_3_1_2_NL_S_DNS_eV.zip -d ml-turbulence-dataset/komegasst
 ## Usage
 The package is structure across three core objects CaseSet, DataSet and FrameWork.
 A series of other modules are available for extended functionality such as evaluation, visualization and integration with OpenFOAM, all of which interact with a CaseSet obj. Before starting make sure that [A curated dataset for data-driven
-turbulence modelling](https://doi.org/10.34740/kaggle/dsv/2637500) by McConkey *et al.* is present in your system. The version used in the present work was augmented using [these tools](...) and can be found [here](...).
+turbulence modelling](https://doi.org/10.34740/kaggle/dsv/2637500) by McConkey *et al.* is present in your system. The version used in the present work was augmented using [these tools](...) and can be found [here](https://drive.google.com/drive/folders/1JS860Io-tE8zuekf3k6C1l-q9zGkofsy?usp=drive_link).
 
 ### CaseSet
 A CaseSet must be created via a SetConfig obj which contains the params to be loaded such as features and labels.
@@ -201,12 +209,25 @@ foam.dump_predictions(dir_path)
 
 ## Examples
 More use cases are covered in the [examples](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples) directory:
-1. [FrameWork Training](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/training_oevnltbnn.ipynb)
+1. [FrameWork Training](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/training_oevnltbnn.ipynb) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1uPuVQZn_YeWE2SmK7dkS65HITItk1M7k?usp=sharing)
 2. [Setting Up Cross Validtion](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/cross_val_load_inference.py)
 3. [Train and Inference with Cross Validation](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/cross_val_train.py)
-4. [Inference on loaded DataSet, Framework and exporting to openfoam](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/loading_inference_foam_export.py)
-5. [Post Processing resulting foam files](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/load_foam_fields.ipynb)
+4. [Inference on loaded DataSet, Framework and exporting to openfoam](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/loading_inference_foam_export.py) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1isYwMS3jcQsBy_6Tq1Bc1vQzFmE8NBzP?usp=sharing)
+5. [Post Processing resulting foam files](https://github.com/BrunoV21/IDeaL_RCF/tree/main/examples/load_foam_fields.ipynb)[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1sE2oKUrz6Gfy5K-VW1A57r3eq_STbaRF?usp=sharing)
+
 
 
 ## OpenFOAM Integration
 The solvers and configurations used for injecting the predictions are available [here](https://github.com/BrunoV21/IDeaL_RCF/tree/main/openfoam)
+
+
+## Achievments
+After injecting the predicted anisotpry fields into OpenFOAM, the converged velocity fields for the ```PHLL_case_1p2``` test case perfectly match the averaged DNS field. The wall sheer stress along the bottom wall and the reattachment lenght also match their DNS counterpart.
+
+![Alt text](./docs/PHLL_case_1p2_results/OeV+NL_TBNN_anisotropy_plots_PHLL_case_1p2_a_NL.png)
+
+![Alt text](./docs/PHLL_case_1p2_results/PHLL_case_1p2_NL_3b_U_plots_PHLL_case_1p2.png)
+
+![Alt text](./docs/PHLL_case_1p2_results/oevnltbnn_final_u_velocity.png)
+
+![Alt text](./docs/PHLL_case_1p2_results/oevnltbnn_final_wss.png)
