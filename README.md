@@ -1,9 +1,5 @@
-<a href="https://pypi.org/project/ideal-rcf" target="_blank">
-    <img src="https://img.shields.io/pypi/pyversions/ideal-rcf.svg?color=%2334D058" alt="Supported Python versions">
-</a> 
-<a href="https://pypi.org/project/ideal-rcf" target="_blank">
-    <img src="https://img.shields.io/pypi/v/ideal-rcf?color=%2334D058&label=pypi%20package" alt="Package version">
-</a>
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/ideal-rcf?style=flat)
+[![PyPI Downloads](https://static.pepy.tech/badge/ideal-rcf)](https://pepy.tech/projects/ideal-rcf)
 
 # IDeaL_RCF
 
