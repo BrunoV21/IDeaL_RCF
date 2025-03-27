@@ -1,5 +1,6 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/ideal-rcf?style=flat)
 [![PyPI Downloads](https://static.pepy.tech/badge/ideal-rcf)](https://pepy.tech/projects/ideal-rcf)
+![PyPI - Version](https://img.shields.io/pypi/v/ideal_rcf)
 
 # IDeaL_RCF
 
